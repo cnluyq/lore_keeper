@@ -1,0 +1,42 @@
+{% extends 'problems/base.html' %}
+{% block content %}
+<div class="container py-5">
+  <div class="card custom-card p-4">
+    <h2 class="mb-4 text-center">{{ action }} Problem</h2>
+
+    <form method="post" enctype="multipart/form-data" class="row g-3 form-wrapper">
+      {% csrf_token %}
+
+      <!-- Key Words -->
+      <div class="col-12">
+        <label class="form-label" for="{{ form.key_words.id_for_label }}">Key Words</label>
+        {{ form.key_words }}
+        {% if form.key_words.errors %}<div class="text-danger small">{{ form.key_words.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      <!-- Title -->
+      <div class="col-12">
+        <label class="form-label" for="{{ form.title.id_for_label }}">Topic Title</label>
+        {{ form.title }}
+        {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      <!-- 其余字段 -->
+      {% for field in form %}
+        {% if field.name not in 'key_words,title' %}
+          <div class="col-12">
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      <div class="col-12 text-center">
+        <button class="btn btn-primary px-4">Save</button>
+        <a class="btn btn-outline-secondary px-4 ms-2" href="{% url 'problem_list' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

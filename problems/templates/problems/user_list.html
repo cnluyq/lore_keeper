@@ -1,0 +1,64 @@
+{% extends 'problems/base.html' %}
+{% block content %}
+<div class="container py-4">
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+        {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+  <h2 class="mb-3">User Management</h2>
+  {% if user.is_superuser %}
+    <a class="btn btn-success mb-3" href="{% url 'user_add' %}">+ Add User</a>
+  {% endif %}
+  <table class="table table-bordered table-hover">
+    <thead class="table-light">
+      <tr>
+        <th>ID</th>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Joined</th>
+        <th>Active</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>
+            {{ u.username }}
+            {% if u.is_superuser %}
+              <span class="badge bg-warning text-dark ms-2" title="Superuser">
+                <i class="bi bi-star-fill"></i> Admin
+              </span>
+            {% endif %}
+        </td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.date_joined|date:"Y-m-d H:i" }}</td>
+        <td>
+          <span class="badge {% if u.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+            {{ u.is_active|yesno:"Yes,No" }}
+          </span>
+        </td>
+        <td>
+          {% if u != request.user %}
+            <a class="btn btn-sm btn-outline-warning"
+               href="{% url 'user_toggle_active' u.id %}">
+              {% if u.is_active %}Disable{% else %}Enable{% endif %}
+            </a>
+            <a class="btn btn-sm btn-outline-danger"
+             href="{% url 'user_delete' u.id %}">Delete
+            </a>
+          {% else %}
+            <span class="text-muted small">You</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
