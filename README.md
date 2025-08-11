@@ -3,7 +3,7 @@ knowlege and experience keeper
 
 new_run_steps:
 
-cd problem_manager
+cd lore_keeper
 
 python -m venv venv
 
