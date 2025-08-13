@@ -96,6 +96,21 @@ function escapeHtml(text) {
 function nl2br(text) {
   return escapeHtml(text || '').replace(/\n/g, '<br>');
 }
+
+// 把原始文本转义并保留空格、换行
+function preserveText(text) {
+  if (!text) return '-';
+  // 1. 转义 <  >  & 等
+  const safe = document.createElement('div');
+  safe.textContent = text;
+  // 2. 把空格替换为 &nbsp;，换行替换为 <br>
+  return safe.innerHTML
+              .replace(/ /g, '&nbsp;')   // 普通空格 → &nbsp;
+              .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;') // Tab
+              .replace(/\n/g, '<br>');   // 换行
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
   const rows = document.querySelectorAll('.table-row-detail');
   rows.forEach(row => {
@@ -109,10 +124,10 @@ document.addEventListener('DOMContentLoaded', () => {
             <p><strong>No.</strong> ${data.id}</p>
             <p><strong>Key Words:</strong> ${data.key_words}</p>
             <p><strong>Title:</strong> ${data.title}</p>
-            <p><strong>Description:</strong><br>${nl2br(data.description)}</p>
-            <p><strong>Root Cause:</strong><br>${nl2br(data.root_cause)}</p>
-            <p><strong>Solutions:</strong><br>${nl2br(data.solutions)}</p>
-            <p><strong>Others:</strong><br>${nl2br(data.others)}</p>
+            <p><strong>Description:</strong><br>${preserveText(data.description)}</p>
+            <p><strong>Root Cause:</strong><br>${preserveText(data.root_cause)}</p>
+            <p><strong>Solutions:</strong><br>${preserveText(data.solutions)}</p>
+            <p><strong>Others:</strong><br>${preserveText(data.others)}</p>
             <p><strong>Created:</strong> ${data.create_time}</p>
             <p><strong>Updated:</strong> ${data.update_time}</p>
           `;
