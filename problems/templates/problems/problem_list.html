@@ -22,14 +22,14 @@
   <thead class="table-light">
     <tr>
       <th>No.</th>
-      <th>Key Words</th>
+      <th class="text-nowrap">Key Words</th>
       <th>Title</th>
       <th>Description</th>
-      <th>Root Cause</th>
+      <th class="text-nowrap">Root Cause</th>
       <th>Solutions</th>
       <th>Others</th>
-      <th>Create Time</th>
-      <th>Update Time</th>
+      <th class="text-nowrap">Create Time</th>
+      <th class="text-nowrap">Update Time</th>
       {% if user.is_superuser %}<th>Owner</th>{% endif %}
       {% if user.is_authenticated %}<th>Actions</th>{% endif %}
     </tr>
