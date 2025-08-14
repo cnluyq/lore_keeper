@@ -34,36 +34,33 @@ def superuser_required(view_func):
     return user_passes_test(lambda u: u.is_superuser)(view_func)
 
 # ---------- 游客可见 ----------
-#def problem_list(request):
-#    query = request.GET.get('q')
-#    if query:
-#        problems = Problem.objects.filter(
-#            key_words__icontains=query
-#        ) | Problem.objects.filter(
-#            title__icontains=query
-#        ) | Problem.objects.filter(
-#            description__icontains=query
-#        )
-#    else:
-#        problems = Problem.objects.all()
-#    return render(request, 'problems/problem_list.html', {'problems': problems, 'query': query})
-
+from django.core.serializers.json import DjangoJSONEncoder
 def problem_list(request):
-    query = request.GET.get('q','')
-    problems = Problem.objects.all()
-
-    if query:
-        problems = problems.filter(
-            Q(key_words__icontains=query) |
-            Q(title__icontains=query) |
-            Q(description__icontains=query) |
-            Q(root_cause__icontains=query) |
-            Q(solutions__icontains=query) |
-            Q(others__icontains=query)
-        )
-
-    return render(request, 'problems/problem_list.html',
-                  {'problems': problems, 'query': query})
+    # 一次性返回所有问题数据
+    problems = Problem.objects.all().order_by('-create_time')
+    data = [
+        {
+            'id': p.id,
+            'key_words': p.key_words,
+            'title': p.title,
+            'description': p.description,
+            'root_cause': p.root_cause,
+            'root_cause_file': p.root_cause_file.url if p.root_cause_file else None,
+            'solutions': p.solutions,
+            'solutions_file': p.solutions_file.url if p.solutions_file else None,
+            'others': p.others,
+            'others_file': p.others_file.url if p.others_file else None,
+            'create_time': p.create_time.strftime('%Y-%m-%d %H:%M'),
+            'update_time': p.update_time.strftime('%Y-%m-%d %H:%M'),
+            'created_by': p.created_by.username if p.created_by else '-',
+        }
+        for p in problems
+    ]
+    context = {
+        'problems_json': json.dumps(data, ensure_ascii=False),
+        'user': request.user,
+    }
+    return render(request, 'problems/problem_list.html', context)
 # ---------- 登录/注册 ----------
 def register_view(request):
     if not settings.REGISTRATION_OPEN:
@@ -185,21 +182,6 @@ from django.contrib.auth import logout
 def logout_view(request):
     logout(request)
     return redirect('problem_list')
-
-from django.http import JsonResponse
-def problem_detail_json(request, pk):
-    p = get_object_or_404(Problem, pk=pk)
-    return JsonResponse({
-        'id': p.id,
-        'key_words': p.key_words,
-        'title': p.title,
-        'description': p.description,
-        'root_cause': p.root_cause,
-        'solutions': p.solutions,
-        'others': p.others,
-        'create_time': p.create_time.strftime('%Y-%m-%d %H:%M'),
-        'update_time': p.update_time.strftime('%Y-%m-%d %H:%M')
-    })
 
 @superuser_required
 def user_list(request):

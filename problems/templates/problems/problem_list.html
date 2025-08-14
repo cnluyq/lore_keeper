@@ -4,8 +4,7 @@
 
 <form method="get" class="mb-3">
   <div class="input-group">
-    <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search...">
-    <button class="btn btn-outline-secondary">Search</button>
+    <input type="text" id="searchInput" class="form-control" placeholder="Search...">
   </div>
 </form>
 
@@ -35,7 +34,7 @@
       {% if user.is_authenticated %}<th>Actions</th>{% endif %}
     </tr>
   </thead>
-<tbody>
+<tbody id="problemTableBody">
 {% for p in problems %}
 <tr data-id="{{ p.id }}" class="table-row-detail">
   <td>{{ p.id }}</td>
@@ -71,7 +70,6 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Problem Detail</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="modalBody">
         <!-- JS 动态填充 -->
@@ -85,6 +83,42 @@
 
 <!-- 双击行加载详情 -->
 <script>
+const allProblems = {{ problems_json|safe }};
+function renderTable(data) {
+  const tbody = document.getElementById('problemTableBody');
+  tbody.innerHTML = '';
+  data.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.dataset.problem = JSON.stringify(p);
+    tr.innerHTML = `
+      <td>${p.id}</td>
+      <td>${p.key_words}</td>
+      <td>${p.title}</td>
+      <td>${p.description.slice(0, 30)}${p.description.length > 30 ? '...' : ''}</td>
+      <td>${p.root_cause.slice(0, 20)}${p.root_cause.length > 20 ? '...' : ''}
+        ${p.root_cause_file ? `<a href="${p.root_cause_file}" target="_blank"><i class="bi bi-paperclip"></i></a>` : ''}
+      </td>
+      <td>${p.solutions.slice(0, 20)}${p.solutions.length > 20 ? '...' : ''}
+        ${p.solutions_file ? `<a href="${p.solutions_file}" target="_blank"><i class="bi bi-paperclip"></i></a>` : ''}
+      </td>
+      <td>${p.others.slice(0, 20)}${p.others.length > 20 ? '...' : ''}
+        ${p.others_file ? `<a href="${p.others_file}" target="_blank"><i class="bi bi-paperclip"></i></a>` : ''}
+      </td>
+      <td>${p.create_time}</td>
+      <td>${p.update_time}</td>
+      {% if user.is_superuser %}<td>${p.created_by}</td>{% endif %}
+      {% if user.is_authenticated %}
+      <td>
+        {% if user.is_superuser or user.username == p.created_by %}
+          <a class="btn btn-sm btn-warning" href="/edit/${p.id}/">Edit</a>
+          <a class="btn btn-sm btn-danger" href="/delete/${p.id}/" onclick="return confirm('Delete?')">Delete</a>
+        {% endif %}
+      </td>
+      {% endif %}
+    `;
+    tbody.appendChild(tr);
+  });
+
 // 把原始文本转义并保留空格、换行
 function preserveText(text) {
   if (!text) return '-';
@@ -97,32 +131,41 @@ function preserveText(text) {
               .replace(/\n/g, '<br>');   // 换行
 }
 
-
-document.addEventListener('DOMContentLoaded', () => {
-  const rows = document.querySelectorAll('.table-row-detail');
-  rows.forEach(row => {
+  // 绑定双击事件
+  document.querySelectorAll('#problemTableBody tr').forEach(row => {
     row.addEventListener('dblclick', () => {
-      const id = row.dataset.id;
-      fetch(`/api/problem/${id}/`)
-        .then(r => r.json())
-        .then(data => {
-          const mb = document.getElementById('modalBody');
-          mb.innerHTML = `
-            <p><strong>No.</strong> ${data.id}</p>
-            <p><strong>Key Words:</strong> ${data.key_words}</p>
-            <p><strong>Title:</strong> ${data.title}</p>
-            <p><strong>Description:</strong><br>${preserveText(data.description)}</p>
-            <p><strong>Root Cause:</strong><br>${preserveText(data.root_cause)}</p>
-            <p><strong>Solutions:</strong><br>${preserveText(data.solutions)}</p>
-            <p><strong>Others:</strong><br>${preserveText(data.others)}</p>
-            <p><strong>Created:</strong> ${data.create_time}</p>
-            <p><strong>Updated:</strong> ${data.update_time}</p>
-          `;
-          new bootstrap.Modal(document.getElementById('detailModal')).show();
-        });
+      const p = JSON.parse(row.dataset.problem);
+      const mb = document.getElementById('modalBody');
+      mb.innerHTML = `
+        <p><strong>No.</strong> ${p.id}</p>
+        <p><strong>Key Words:</strong> ${p.key_words}</p>
+        <p><strong>Title:</strong> ${p.title}</p>
+        <p><strong>Description:</strong><br>${preserveText(p.description)}</p>
+        <p><strong>Root Cause:</strong><br>${preserveText(p.root_cause)}</p>
+        <p><strong>Solutions:</strong><br>${preserveText(p.solutions)}</p>
+        <p><strong>Others:</strong><br>${preserveText(p.others)}</p>
+        <p><strong>Created:</strong> ${p.create_time}</p>
+        <p><strong>Updated:</strong> ${p.update_time}</p>
+      `;
+      new bootstrap.Modal(document.getElementById('detailModal')).show();
     });
   });
+}
+
+// 搜索功能
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  const keyword = e.target.value.toLowerCase();
+  const filtered = allProblems.filter(p =>
+    Object.values(p).some(val =>
+      String(val).toLowerCase().includes(keyword)
+    )
+  );
+  renderTable(filtered);
 });
+
+// 初始渲染
+renderTable(allProblems);
+
 </script>
 
 <!-- Import Modal -->
