@@ -1,5 +1,11 @@
 {% extends 'problems/base.html' %}
 {% block content %}
+<style>
+  html, body {
+    overflow: hidden;
+    height: 100%;
+  }
+</style>
 
 <form method="get" class="mb-3">
   <div class="input-group">
@@ -17,6 +23,7 @@
 </div>
 {% endif %}
 
+<div class="table-responsive" style="max-height:calc(100vh - 200px); overflow-y:auto;">
 <table class="table table-bordered table-hover align-middle">
   <thead class="table-light">
     <tr>
@@ -62,6 +69,7 @@
 {% endfor %}
 </tbody>
   </table>
+</div>
 
 <!-- 详情弹窗 -->
 <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
