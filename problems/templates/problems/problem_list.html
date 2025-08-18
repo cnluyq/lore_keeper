@@ -15,7 +15,7 @@
 
 {% if user.is_authenticated %}
 <div class="mb-3">
-  <a class="btn btn-primary" href="{% url 'problem_add' %}">Add Problem</a>
+  <a class="btn btn-primary" href="{% url 'problem_add' %}">Add Item</a>
   {% if user.is_superuser %}
     <a class="btn btn-success" href="{% url 'export_json' %}">Export JSON</a>
     <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#importModal">Import JSON</button>
@@ -76,7 +76,7 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Problem Detail</h5>
+        <h5 class="modal-title">Item Details</h5>
       </div>
       <div class="modal-body" id="modalBody">
         <!-- JS 动态填充 -->

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Problem Manager</title>
+    <title>Items Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap 5 CDN（已存在可保留） -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -72,14 +72,34 @@
       .navbar-brand,
         .navbar-nav .nav-link {
         color: #fff !important;
+        font-size: 1.4em;
+        line-height: 1;
+        padding: 0.25rem 0.5rem;
      }
+     .brand-art {
+        font-size: 1.7em;
+        font-weight: 900;
+        background: linear-gradient(45deg,
+                #ff7eb3 0%,
+                #ffdd80 25%,
+                #8be3ff 50%,
+                #a3ffbf 75%,
+                #ff7eb3 100%);
+       -webkit-background-clip: text;
+       -webkit-text-fill-color: transparent;
+       background-clip: text;
+       text-shadow: 0 1px 2px rgba(0,0,0,.15);
+    }
 </style>
+
 
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-gradient-nav">
   <div class="container-fluid">
-    <a class="navbar-brand" href="{% url 'problem_list' %}">Problem Manager</a>
+    <a class="navbar-brand" href="{% url 'problem_list' %}">
+      <span class="brand-art">I</span>tems <span class="brand-art">M</span>anager
+    </a>
     <div>
       {% if user.is_authenticated %}
         <span class="text-light me-3">Welcome, {{ user.username }}</span>
