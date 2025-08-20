@@ -9,7 +9,7 @@ class ProblemForm(forms.ModelForm):
             'key_words', 'title', 'description',
             'root_cause', 'root_cause_file',
             'solutions', 'solutions_file',
-            'others', 'others_file'
+            'others', 'others_file', 'is_public'
         ]
 
     def __init__(self, *args, **kwargs):

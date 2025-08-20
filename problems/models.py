@@ -14,6 +14,7 @@ class Problem(models.Model):
     create_time = models.DateTimeField(auto_now_add=True)
     update_time = models.DateTimeField(auto_now=True)
     created_by  = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    is_public = models.BooleanField(default=True, verbose_name="public view")
 
     class Meta:
         ordering = ['-create_time']

@@ -55,6 +55,7 @@ def problem_list(request):
             'created_by': p.created_by.username if p.created_by else '-',
         }
         for p in problems
+        if (p.created_by == request.user or request.user.is_superuser or p.is_public)
     ]
     context = {
         'problems_json': json.dumps(data, ensure_ascii=False),
@@ -98,6 +99,9 @@ def problem_add(request):
 @owner_or_superuser_required
 def problem_edit(request, pk):
     problem = get_object_or_404(Problem, pk=pk)
+    if not problem.is_public and not (request.user == problem.created_by or request.user.is_superuser):
+        raise PermissionDenied
+
     if request.method == 'POST':
         form = ProblemForm(request.POST, request.FILES, instance=problem)
         if form.is_valid():
