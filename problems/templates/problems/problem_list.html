@@ -91,6 +91,27 @@
 <!-- 双击行加载详情 -->
 <script>
 const allProblems = {{ problems_json|safe }};
+
+// 把原始文本转义并保留空格、换行
+function preserveText(text) {
+  if (!text) return '-';
+  // 1. 转义 <  >  & 等
+  const safe = document.createElement('div');
+  safe.textContent = text || '';
+  // 2. 把空格替换为 &nbsp;，换行替换为 <br>
+  return safe.innerHTML
+              .replace(/^(\s+)/gm, (_, space) => space.replace(/ /g, '\u00A0').replace(/\t/g, '\u00A0\u00A0\u00A0\u00A0'))
+              .replace(/\n/g, '<br>');   // 换行
+}
+
+// 从URL中提取文件名 
+function extractFilename(url) {
+  if (!url) return '';
+  // 获取URL中最后一个斜杠后的部分
+  const parts = url.split('/');
+  return parts[parts.length - 1];
+}
+
 function renderTable(data) {
   const tbody = document.getElementById('problemTableBody');
   tbody.innerHTML = '';
@@ -126,31 +147,28 @@ function renderTable(data) {
     tbody.appendChild(tr);
   });
 
-// 把原始文本转义并保留空格、换行
-function preserveText(text) {
-  if (!text) return '-';
-  // 1. 转义 <  >  & 等
-  const safe = document.createElement('div');
-  safe.textContent = text || '';
-  // 2. 把空格替换为 &nbsp;，换行替换为 <br>
-  return safe.innerHTML
-              .replace(/^(\s+)/gm, (_, space) => space.replace(/ /g, '\u00A0').replace(/\t/g, '\u00A0\u00A0\u00A0\u00A0'))
-              .replace(/\n/g, '<br>');   // 换行
-}
-
   // 绑定双击事件
   document.querySelectorAll('#problemTableBody tr').forEach(row => {
     row.addEventListener('dblclick', () => {
       const p = JSON.parse(row.dataset.problem);
       const mb = document.getElementById('modalBody');
+      const rootCauseFileLink = p.root_cause_file ?
+        `[ attachment: <a href="${p.root_cause_file}" target="_blank">${extractFilename(p.root_cause_file)}</a> ]` : '';
+
+      const solutionsFileLink = p.solutions_file ?
+        `[ attachment: <a href="${p.solutions_file}" target="_blank">${extractFilename(p.solutions_file)}</a> ]` : '';
+
+      const othersFileLink = p.others_file ?
+        `[ attachment: <a href="${p.others_file}" target="_blank">${extractFilename(p.others_file)}</a> ]` : '';
+
       mb.innerHTML = `
         <p><strong>No.</strong> ${p.id}</p>
         <p><strong>Key Words:</strong> ${p.key_words}</p>
         <p><strong>Title:</strong> ${p.title}</p>
         <p><strong>Description:</strong><br>${preserveText(p.description)}</p>
-        <p><strong>Root Cause:</strong><br>${preserveText(p.root_cause)}</p>
-        <p><strong>Solutions:</strong><br>${preserveText(p.solutions)}</p>
-        <p><strong>Others:</strong><br>${preserveText(p.others)}</p>
+        <p><strong>Root Cause:</strong><br>${preserveText(p.root_cause)}<br>${rootCauseFileLink}</p>
+        <p><strong>Solutions:</strong><br>${preserveText(p.solutions)}<br>${solutionsFileLink}</p>
+        <p><strong>Others:</strong><br>${preserveText(p.others)}<br>${othersFileLink}</p>
         <p><strong>Created:</strong> ${p.create_time}</p>
         <p><strong>Updated:</strong> ${p.update_time}</p>
       `;
