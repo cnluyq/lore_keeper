@@ -1,5 +1,26 @@
 {% extends 'problems/base.html' %}
 {% block content %}
+<style>
+  .form-check-input.custom-checkbox {
+    width: 1.2em;
+    height: 1.2em;
+    margin-top: 0.1em;
+    background-color: #fff;
+    border: 2px solid #0d6efd;
+    border-radius: 0.25em;
+  }
+
+  .form-check-input.custom-checkbox:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+  }
+
+  .form-check-input.custom-checkbox:focus {
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+  }
+</style>
+
 <div class="container py-5">
   <div class="card custom-card p-4">
     <h2 class="mb-4 text-center">{{ action }} Item</h2>
@@ -8,8 +29,8 @@
 
       <div class="col-12">
         <div class="form-check">
-          <input class="form-check-input" type="checkbox" name="is_public" id="id_is_public" {% if form.instance.is_public or not form.instance.pk %}checked{% endif %}>
-          <label class="form-check-label" for="id_is_public">View Publicly</label>
+          <input class="form-check-input custom-checkbox" type="checkbox" name="is_public" id="id_is_public" {% if form.instance.is_public and form.instance.pk %}checked{% endif %}>
+          <label class="form-check-label fw-bold" for="id_is_public" style="color: #495057;">View Publicly</label>
         </div>
       </div>
 
