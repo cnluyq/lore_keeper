@@ -1,5 +1,5 @@
 from django import forms
-from .models import Problem
+from .models import Problem, SensitiveWord
 from django.core.exceptions import ValidationError
 
 class ProblemForm(forms.ModelForm):
@@ -53,3 +53,18 @@ class StaffUserCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
         fields = ('username', 'email', 'password1', 'password2')
+
+class SensitiveWordForm(forms.ModelForm):
+    class Meta:
+        model = SensitiveWord
+        fields = ['word', 'replacement', 'is_active']
+        widgets = {
+            'word': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Input sensitive word'}),
+            'replacement': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Input replacement word'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'word': 'sensitive word',
+            'replacement': 'replacement word',
+            'is_active': 'active',
+        }

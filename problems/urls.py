@@ -11,4 +11,9 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),  
+    path('sensitive-words/', views.sensitive_word_list, name='sensitive_word_list'),
+    path('sensitive-words/add/', views.sensitive_word_add, name='sensitive_word_add'),
+    path('sensitive-words/edit/<int:pk>/', views.sensitive_word_edit, name='sensitive_word_edit'),
+    path('sensitive-words/toggle/<int:pk>/', views.sensitive_word_toggle, name='sensitive_word_toggle'),
+    path('sensitive-words/delete/<int:pk>/', views.sensitive_word_delete, name='sensitive_word_delete'),
 ]

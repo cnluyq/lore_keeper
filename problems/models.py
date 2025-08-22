@@ -21,3 +21,19 @@ class Problem(models.Model):
 
     def __str__(self):
         return self.title
+
+class SensitiveWord(models.Model):
+    word = models.CharField(max_length=100, unique=True, verbose_name="sensitive word")
+    replacement = models.CharField(max_length=100, default="***", verbose_name="replacement word")
+    is_active = models.BooleanField(default=True, verbose_name="active")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "sensitive word"
+        verbose_name_plural = "sensitive word"
+
+    def __str__(self):
+        return f"{self.word} -> {self.replacement} ({'enable' if self.is_active else 'disable'})"
+

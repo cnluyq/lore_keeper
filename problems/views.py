@@ -17,6 +17,9 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from .models import SensitiveWord
+from .forms import SensitiveWordForm
+from .sensitive_utils import SensitiveDataProcessor
 
 def owner_or_superuser_required(view_func):
     """允许创建者或超级用户"""
@@ -84,20 +87,29 @@ def login_view(request):
 # ---------- 需登录 ----------
 @login_required
 def problem_add(request):
+    sensitive_words = list(SensitiveDataProcessor.get_active_sensitive_words())
+    sensitive_words_json = json.dumps(sensitive_words, ensure_ascii=False)
+
     if request.method == 'POST':
         form = ProblemForm(request.POST, request.FILES)
         if form.is_valid():
-            obj = form.save(commit=False)
-            obj.created_by = request.user
-            obj.save()
-            return redirect('problem_list')
+            processed_data = SensitiveDataProcessor.process_form_data(request.POST)
+            form = ProblemForm(processed_data, request.FILES)
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj.created_by = request.user
+                obj.save()
+                return redirect('problem_list')
     else:
         form = ProblemForm()
-    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Add'})
+    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Add', 'sensitive_words_json': sensitive_words_json})
 
 @login_required
 @owner_or_superuser_required
 def problem_edit(request, pk):
+    sensitive_words = list(SensitiveDataProcessor.get_active_sensitive_words())
+    sensitive_words_json = json.dumps(sensitive_words, ensure_ascii=False)
+
     problem = get_object_or_404(Problem, pk=pk)
     if not problem.is_public and not (request.user == problem.created_by or request.user.is_superuser):
         raise PermissionDenied
@@ -105,11 +117,14 @@ def problem_edit(request, pk):
     if request.method == 'POST':
         form = ProblemForm(request.POST, request.FILES, instance=problem)
         if form.is_valid():
-            form.save()
-            return redirect('problem_list')
+            processed_data = SensitiveDataProcessor.process_form_data(request.POST)
+            form = ProblemForm(processed_data, request.FILES, instance=problem)
+            if form.is_valid():
+                form.save()
+                return redirect('problem_list')
     else:
         form = ProblemForm(instance=problem)
-    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Edit'})
+    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Edit', 'sensitive_words_json': sensitive_words_json})
 
 @login_required
 @owner_or_superuser_required
@@ -249,3 +264,69 @@ def user_add(request):
     else:
         form = StaffUserCreationForm()
     return render(request, 'problems/user_add.html', {'form': form})
+
+
+
+from django.contrib import messages
+from .models import SensitiveWord
+from .forms import SensitiveWordForm
+from .sensitive_utils import SensitiveDataProcessor
+
+@superuser_required
+def sensitive_word_list(request):
+    """敏感词列表"""
+    words = SensitiveWord.objects.all().order_by('-created_at')
+    return render(request, 'problems/sensitive_word_list.html', {'words': words})
+
+@superuser_required
+def sensitive_word_add(request):
+    """添加敏感词"""
+    if request.method == 'POST':
+        form = SensitiveWordForm(request.POST)
+        if form.is_valid():
+            form.save()
+            # 清除缓存
+            SensitiveDataProcessor.clear_sensitive_words_cache()
+            messages.success(request, 'Succeed to add')
+            return redirect('sensitive_word_list')
+    else:
+        form = SensitiveWordForm()
+    return render(request, 'problems/sensitive_word_form.html', {'form': form, 'action': 'Add'})
+
+@superuser_required
+def sensitive_word_edit(request, pk):
+    """编辑敏感词"""
+    word = get_object_or_404(SensitiveWord, pk=pk)
+    if request.method == 'POST':
+        form = SensitiveWordForm(request.POST, instance=word)
+        if form.is_valid():
+            form.save()
+            # 清除缓存
+            SensitiveDataProcessor.clear_sensitive_words_cache()
+            messages.success(request, 'Succeed to update')
+            return redirect('sensitive_word_list')
+    else:
+        form = SensitiveWordForm(instance=word)
+    return render(request, 'problems/sensitive_word_form.html', {'form': form, 'action': 'Edit'})
+
+@superuser_required
+def sensitive_word_toggle(request, pk):
+    """启用/禁用敏感词"""
+    word = get_object_or_404(SensitiveWord, pk=pk)
+    word.is_active = not word.is_active
+    word.save()
+    # 清除缓存
+    SensitiveDataProcessor.clear_sensitive_words_cache()
+    status = "Actived" if word.is_active else "Deactived"
+    messages.success(request, f'sensitive has been {status}')
+    return redirect('sensitive_word_list')
+
+@superuser_required
+def sensitive_word_delete(request, pk):
+    """删除敏感词"""
+    word = get_object_or_404(SensitiveWord, pk=pk)
+    word.delete()
+    # 清除缓存
+    SensitiveDataProcessor.clear_sensitive_words_cache()
+    messages.success(request, '敏感词已删除')
+    return redirect('sensitive_word_list')

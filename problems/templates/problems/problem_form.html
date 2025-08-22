@@ -66,4 +66,55 @@
     </form>
   </div>
 </div>
+<script>
+// 前端敏感词检查（辅助功能，后端验证是主要的）
+function checkSensitiveContent() {
+    // 从隐藏字段获取敏感词列表
+    const sensitiveWordsElement = document.getElementById('sensitiveWordsData');
+    if (!sensitiveWordsElement) return true;
+    
+    const sensitiveWords = JSON.parse(sensitiveWordsElement.textContent);
+    let hasSensitiveContent = false;
+    let warningMessage = "您的内容包含潜在的敏感信息: ";
+    let detectedWords = [];
+    
+    // 检查所有文本输入框和文本区域
+    document.querySelectorAll('input[type="text"], textarea').forEach(field => {
+        const value = field.value.toLowerCase();
+        sensitiveWords.forEach(item => {
+            if (value.includes(item.word.toLowerCase())) {
+                hasSensitiveContent = true;
+                if (!detectedWords.includes(item.word)) {
+                    detectedWords.push(item.word);
+                }
+            }
+        });
+    });
+    
+    if (hasSensitiveContent) {
+        warningMessage += detectedWords.join(', ');
+        return confirm(warningMessage + "\n\n确定要继续提交吗?");
+    }
+    
+    return true;
+}
+
+// 在DOM完全加载后绑定事件
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (!checkSensitiveContent()) {
+                e.preventDefault();
+            }
+        });
+    }
+});
+</script>
+<!-- 添加隐藏字段传递敏感词数据 -->
+{% if user.is_superuser %}
+<script id="sensitiveWordsData" type="application/json">
+{{ sensitive_words_json|safe }}
+</script>
+{% endif %}
 {% endblock %}

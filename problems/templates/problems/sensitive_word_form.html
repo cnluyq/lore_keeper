@@ -1,0 +1,36 @@
+{% extends 'problems/base.html' %}
+{% block content %}
+<div class="container py-5">
+  <div class="card custom-card p-4">
+    <h2 class="mb-4 text-center">{{ action }} Sensitive Word</h2>
+    
+    <form method="post" class="row g-3 form-wrapper">
+      {% csrf_token %}
+      
+      <div class="col-12">
+        <label class="form-label" for="{{ form.word.id_for_label }}">{{ form.word.label }}</label>
+        {{ form.word }}
+        {% if form.word.errors %}<div class="text-danger small">{{ form.word.errors|join:", " }}</div>{% endif %}
+      </div>
+      
+      <div class="col-12">
+        <label class="form-label" for="{{ form.replacement.id_for_label }}">{{ form.replacement.label }}</label>
+        {{ form.replacement }}
+        {% if form.replacement.errors %}<div class="text-danger small">{{ form.replacement.errors|join:", " }}</div>{% endif %}
+      </div>
+      
+      <div class="col-12">
+        <div class="form-check">
+          {{ form.is_active }}
+          <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+        </div>
+      </div>
+      
+      <div class="col-12 text-center">
+        <button class="btn btn-primary px-4">Save</button>
+        <a class="btn btn-outline-secondary px-4 ms-2" href="{% url 'sensitive_word_list' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
