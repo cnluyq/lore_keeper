@@ -68,7 +68,7 @@ class SensitiveDataProcessor:
             )
             
         # 脱敏长字符串（可能为API密钥）
-        text = re.sub(r'[a-zA-Z0-9]{20,}', '[REDACTED]', text)
+        #text = re.sub(r'[a-zA-Z0-9]{20,}', '[REDACTED]', text)
         
         # 脱敏类似SSN的模式
         text = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', 'XXX-XX-XXXX', text)
