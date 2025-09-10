@@ -47,11 +47,15 @@ def problem_list(request):
             'key_words': p.key_words,
             'title': p.title,
             'description': p.description,
+            'description_editor_type': p.description_editor_type,
             'root_cause': p.root_cause,
+            'root_cause_editor_type': p.root_cause_editor_type,
             'root_cause_file': p.root_cause_file.url if p.root_cause_file else None,
             'solutions': p.solutions,
+            'solutions_editor_type': p.solutions_editor_type,
             'solutions_file': p.solutions_file.url if p.solutions_file else None,
             'others': p.others,
+            'others_editor_type': p.others_editor_type,
             'others_file': p.others_file.url if p.others_file else None,
             'create_time': p.create_time.strftime('%Y-%m-%d %H:%M'),
             'update_time': p.update_time.strftime('%Y-%m-%d %H:%M'),
@@ -163,20 +167,6 @@ def export_json(request):
     response['Content-Disposition'] = 'attachment; filename="problems.json"'
     return response
 
-#@login_required
-#def import_json(request):
-#    if request.method == 'POST' and request.FILES.get('file'):
-#        file = request.FILES['file']
-#        try:
-#            data = json.load(file)
-#            for item in data:
-#                item.pop('id', None)  # 避免主键冲突
-#                Problem.objects.create(created_by=request.user, **item)
-#            return JsonResponse({'status': 'success'})
-#        except Exception as e:
-#            return JsonResponse({'status': 'error', 'message': str(e)})
-#    return JsonResponse({'status': 'invalid'})
-
 @login_required
 @superuser_required
 def import_json(request):
@@ -214,13 +204,6 @@ def user_toggle_active(request, pk):
         user.is_active = not user.is_active
         user.save()
     return redirect('user_list')
-
-#@superuser_required
-#def user_delete(request, pk):
-#    user = get_object_or_404(User, pk=pk)
-#    if user != request.user:  # 防止删除自己
-#        user.delete()
-#    return redirect('user_list')
 
 @superuser_required
 def user_delete(request, pk):

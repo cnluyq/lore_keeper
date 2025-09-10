@@ -15,6 +15,10 @@ class Problem(models.Model):
     update_time = models.DateTimeField(auto_now=True)
     created_by  = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     is_public = models.BooleanField(default=True, verbose_name="public view")
+    description_editor_type = models.CharField(max_length=10, choices=[('markdown', 'Markdown'), ('plain', 'Plain Text')], default='plain')
+    root_cause_editor_type = models.CharField(max_length=10, choices=[('markdown', 'Markdown'), ('plain', 'Plain Text')], default='plain')
+    solutions_editor_type = models.CharField(max_length=10, choices=[('markdown', 'Markdown'), ('plain', 'Plain Text')], default='plain')
+    others_editor_type = models.CharField(max_length=10, choices=[('markdown', 'Markdown'), ('plain', 'Plain Text')], default='plain')
 
     class Meta:
         ordering = ['-create_time']

@@ -19,6 +19,27 @@
   .form-check-input.custom-checkbox:focus {
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
   }
+  
+  .editor-container {
+    position: relative;
+    margin-bottom: 1rem;
+  }
+  .editor-toggle {
+    font-size: 0.8rem;
+    color: #6c757d;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+  }
+  .editor-toggle:hover {
+    background-color: #e9ecef;
+    color: #495057;
+  }
+  .form-wrapper {
+    max-width: 50vw !important;   
+    margin: 0 auto;           
+  }
 </style>
 
 <div class="container py-5">
@@ -26,6 +47,12 @@
     <h2 class="mb-4 text-center">{{ action }} Item</h2>
       <form method="post" enctype="multipart/form-data" class="row g-3 form-wrapper">
       {% csrf_token %}
+
+      <!-- 隐藏字段用于存储编辑器类型 -->
+      {{ form.description_editor_type }}
+      {{ form.root_cause_editor_type }}
+      {{ form.solutions_editor_type }}
+      {{ form.others_editor_type }}
 
       <div class="col-12">
         <div class="form-check">
@@ -48,16 +75,64 @@
         {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors|join:", " }}</div>{% endif %}
       </div>
 
-      <!-- 其余字段 -->
-      {% for field in form %}
-        {% if field.name not in 'key_words,title,is_public' %}
-          <div class="col-12">
-            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
-          </div>
+
+      {# 把原来的 for 循环删掉，换成下面 4 段 #}
+
+      {# 1. description #}
+      <div class="col-12 editor-container">
+        <label class="form-label" for="description-editor">{{ form.description.label }}</label> 
+        <button type="button" class="editor-toggle" data-field="description">Switch to Markdown</button>
+        <textarea id="description-editor" name="description" rows="4" class="form-control">{{ form.instance.description|default_if_none:"" }}</textarea>
+        {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors|join:", " }}</div>{% endif %}
+      </div>
+
+      {# 2. root_cause #}
+      <div class="col-12 editor-container">
+        <label class="form-label" for="root_cause-editor">{{ form.root_cause.label }}</label>
+        <button type="button" class="editor-toggle" data-field="root_cause">Switch to Markdown</button>
+        <textarea id="root_cause-editor" name="root_cause" rows="4" class="form-control">{{ form.instance.root_cause|default_if_none:"" }}</textarea>
+        {% if form.root_cause.errors %}<div class="text-danger small">{{ form.root_cause.errors|join:", " }}</div>{% endif %}
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="{{ form.root_cause_file.id_for_label }}">{{ form.root_cause_file.label }}</label>
+        {{ form.root_cause_file }}
+        {% if form.root_cause_file.errors %}<div class="text-danger small">{{ form.root_cause_file.errors|join:", " }}</div>{% endif %}
+        {% if form.instance.root_cause_file %}
+          <p class="small text-muted mt-1">Current: <a href="{{ form.instance.root_cause_file.url }}" target="_blank">{{ form.instance.root_cause_file.name }}</a></p>
         {% endif %}
-      {% endfor %}
+      </div>
+
+      {# 3. solutions #}
+      <div class="col-12 editor-container">
+        <label class="form-label" for="solutions-editor">{{ form.solutions.label }}</label>
+        <button type="button" class="editor-toggle" data-field="solutions">Switch to Markdown</button>
+        <textarea id="solutions-editor" name="solutions" rows="4" class="form-control">{{ form.instance.solutions|default_if_none:"" }}</textarea>
+        {% if form.solutions.errors %}<div class="text-danger small">{{ form.solutions.errors|join:", " }}</div>{% endif %}
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="{{ form.solutions_file.id_for_label }}">{{ form.solutions_file.label }}</label>
+        {{ form.solutions_file }}
+        {% if form.solutions_file.errors %}<div class="text-danger small">{{ form.solutions_file.errors|join:", " }}</div>{% endif %}
+        {% if form.instance.solutions_file %}
+          <p class="small text-muted mt-1">Current: <a href="{{ form.instance.solutions_file.url }}" target="_blank">{{ form.instance.solutions_file.name }}</a></p>
+        {% endif %}
+      </div>
+
+      {# 4. others #}
+      <div class="col-12 editor-container">
+        <label class="form-label" for="others-editor">{{ form.others.label }}</label>
+        <button type="button" class="editor-toggle" data-field="others">Switch to Markdown</button>
+        <textarea id="others-editor" name="others" rows="4" class="form-control">{{ form.instance.others|default_if_none:"" }}</textarea>
+        {% if form.others.errors %}<div class="text-danger small">{{ form.others.errors|join:", " }}</div>{% endif %}
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="{{ form.others_file.id_for_label }}">{{ form.others_file.label }}</label>
+        {{ form.others_file }}
+        {% if form.others_file.errors %}<div class="text-danger small">{{ form.others_file.errors|join:", " }}</div>{% endif %}
+        {% if form.instance.others_file %}
+          <p class="small text-muted mt-1">Current: <a href="{{ form.instance.others_file.url }}" target="_blank">{{ form.instance.others_file.name }}</a></p>
+        {% endif %}
+      </div>
 
       <div class="col-12 text-center">
         <button class="btn btn-primary px-4">Save</button>
@@ -66,7 +141,188 @@
     </form>
   </div>
 </div>
+
+<!-- EasyMDE CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+
+
+<style>
+/* 让工具栏变成弹性盒子，按钮排成一行 */
+.editor-toolbar {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 2px;                 /* 按钮间距 */
+}
+
+.editor-toolbar i,
+.editor-toolbar a,
+.editor-toolbar button {
+  display: inline-flex !important;   /* 关键：不让 table 独占 */
+  align-items: center;
+  justify-content: center;
+  width: 30px;                        /* 统一宽度，可随字体调 */
+  height: 30px;
+}
+</style>
+
+
 <script>
+
+// 初始化编辑器状态
+const editorStates = {
+  description: '{{ form.instance.description_editor_type|default:"plain" }}' || 'plain',
+  root_cause: '{{ form.instance.root_cause_editor_type|default:"plain" }}' || 'plain',
+  solutions: '{{ form.instance.solutions_editor_type|default:"plain" }}' || 'plain',
+  others: '{{ form.instance.others_editor_type|default:"plain" }}'  || 'plain'
+};
+
+// 存储编辑器实例
+const editors = {};
+
+// 初始化编辑器
+function initEditor(fieldName) {
+  const textarea = document.getElementById(`${fieldName}-editor`);
+  //const wrapper = textarea.closest('.EasyMDEContainer');
+  const wrapper = textarea.closest('.EditorMDContainer');
+  if (wrapper) { wrapper.parentNode.replaceChild(textarea, wrapper); }
+
+  const toggleBtn = document.querySelector(`.editor-toggle[data-field="${fieldName}"]`);
+  const editorTypeField = document.getElementById(`id_${fieldName}_editor_type`);
+
+
+  if (editorStates[fieldName] === 'markdown') {
+    // 初始化Markdown编辑器
+    editors[fieldName] = new EasyMDE({ 
+      element: textarea,
+      autoDownloadFontAwesome: false,
+      spellChecker: false,
+      toolbar: [
+        "heading", "bold", "italic", "strikethrough",
+        "|", "code", 
+        {                       // 代码块（自定义）
+          name: "code-block",
+          action: function customCodeBlock(editor) {
+          const cm = editor.codemirror;
+          const start = '```\n';
+          const end   = '\n```';
+          cm.replaceSelection(start + cm.getSelection() + end);
+          cm.setCursor(cm.getCursor().line + 1, 0); // 光标落到代码区
+          },
+        className: "fa fa-file-code-o", // FontAwesome 图标
+        title: "Code Block"
+        },
+        "|", "quote", "unordered-list", "ordered-list",
+        "|", "link", "image", "table", "horizontal-rule",
+        "|", "preview", "side-by-side", "fullscreen",
+        "|", "guide", // 官方语法帮助
+        {
+          name: "upload",
+          action: function customUpload(editor) {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = 'image/*';
+            input.onchange = () => uploadImage(input.files[0], editor);
+            input.click();
+          },
+          className: "fa fa-upload", title: "Upload Image"
+        },
+        {
+          name: "paste",
+          action: function pasteMarkdown(editor) {
+            editor.codemirror.replaceSelection(`**${new Date().toLocaleString()}**`);
+          },
+          className: "fa fa-clock-o", title: "Insert DateTime"
+        }
+      ]
+    });
+
+    toggleBtn.textContent = 'Switch to Plain Text';
+  } else {
+    // 普通文本模式
+    toggleBtn.textContent = 'Switch to Markdown';
+  }
+  
+  // 设置编辑器类型隐藏字段的值
+  editorTypeField.value = editorStates[fieldName];
+}
+
+// 切换编辑器类型
+function toggleEditor(fieldName) {
+  const textarea = document.getElementById(`${fieldName}-editor`);
+  const toggleBtn = document.querySelector(`.editor-toggle[data-field="${fieldName}"]`);
+  const editorTypeField = document.getElementById(`id_${fieldName}_editor_type`);
+  
+  if (editorStates[fieldName] === 'plain') {
+    // 切换到Markdown
+    editorStates[fieldName] = 'markdown';
+    editors[fieldName] = new EasyMDE({ 
+      element: textarea,
+      autoDownloadFontAwesome: false,
+      spellChecker: false,
+      toolbar: [
+        "heading", "bold", "italic", "strikethrough",
+        "|", "code",
+        {                       // 代码块（自定义）
+          name: "code-block",
+          action: function customCodeBlock(editor) {
+          const cm = editor.codemirror;
+          const start = '```\n';
+          const end   = '\n```';
+          cm.replaceSelection(start + cm.getSelection() + end);
+          cm.setCursor(cm.getCursor().line + 1, 0); // 光标落到代码区
+          },
+        className: "fa fa-file-code-o", // FontAwesome 图标
+        title: "Code Block"
+        },
+        "|", "quote", "unordered-list", "ordered-list",
+        "|", "link", "image", "table", "horizontal-rule",
+        "|", "preview", "side-by-side", "fullscreen",
+        "|", "guide", // 官方语法帮助
+        {
+          name: "upload",
+          action: function customUpload(editor) {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = 'image/*';
+            input.onchange = () => uploadImage(input.files[0], editor);
+            input.click();
+          },
+          className: "fa fa-upload", title: "Upload Image"
+        },
+        {
+          name: "paste",
+          action: function pasteMarkdown(editor) {
+            editor.codemirror.replaceSelection(`**${new Date().toLocaleString()}**`);
+          },
+          className: "fa fa-clock-o", title: "Insert DateTime"
+        }
+      ]
+    });
+
+    toggleBtn.textContent = 'Switch to Plain Text';
+  } else {
+    // 切换回普通文本
+    editorStates[fieldName] = 'plain';
+    if (editors[fieldName]) {
+      // 保存内容并销毁Markdown编辑器
+      const content = editors[fieldName].value();
+      editors[fieldName].toTextArea();
+      const wrapper = textarea.parentElement;   // 此时 wrapper 就是 .EasyMDEContainer
+      if (wrapper && wrapper.classList.contains('EditorMDContainer')) {
+        wrapper.parentNode.replaceChild(textarea, wrapper); // 彻底移除 wrapper
+      }
+      textarea.value = content;
+      delete editors[fieldName];
+    }
+    toggleBtn.textContent = 'Switch to Markdown';
+  }
+  
+  // 更新隐藏字段的值
+  editorTypeField.value = editorStates[fieldName];
+}
+
+
 // 前端敏感词检查（辅助功能，后端验证是主要的）
 function checkSensitiveContent() {
     // 从隐藏字段获取敏感词列表
@@ -101,6 +357,15 @@ function checkSensitiveContent() {
 
 // 在DOM完全加载后绑定事件
 document.addEventListener('DOMContentLoaded', function() {
+// 初始化各字段编辑器
+  ['description', 'root_cause', 'solutions', 'others'].forEach(fieldName => {
+    initEditor(fieldName);
+    
+    // 绑定切换按钮事件
+    document.querySelector(`.editor-toggle[data-field="${fieldName}"]`)
+      .addEventListener('click', () => toggleEditor(fieldName));
+  });
+
     const form = document.querySelector('form');
     if (form) {
         form.addEventListener('submit', function(e) {

@@ -5,7 +5,123 @@
     overflow: hidden;
     height: 100%;
   }
+  /* 1. 让主容器占满屏幕宽度 */
+  .container {
+    max-width: 95%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* 2. 表格容器允许横向滚动，表格本身撑满 */
+  .table-responsive {
+    overflow-x: auto;
+  }
+  table {
+    min-width: 1200px;   /* 根据实际列数可再调大 */
+    width: 100%;
+  }
+
+  /* 3. Actions 列不要换行，防止被压扁 */
+  th:last-child,
+  td:last-child {
+    white-space: nowrap;
+  }
+
+  /* 弹窗内 Markdown 块强制折行 */
+  #modalBody p,
+  #modalBody li {
+    word-break: break-word;   /* 优先在单词边界断，必要时任意字符 */
+    overflow-wrap: break-word;
+    white-space: normal;
+  }
+
+
+/* 单行代码：整行浅灰背景 */
+#modalBody code:not(pre code) {
+  display: block;              /* 单行 code 也占满整行 */
+  width: 100%;
+  color: inherit;
+  background-color: #f1f3f4;   /* 浅灰背景 */
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  line-height: 1.5;
+  border: 1px solid #dcdcdc;
+  border-radius: 3px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* 多行代码块：整行浅灰背景 */
+#modalBody pre {
+  display: block;
+  width: 100%;
+  color: inherit;
+  background-color: #f1f3f4;   /* 浅灰背景 */
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  line-height: 1.5;
+  border: 1px solid #dcdcdc;
+  border-radius: 3px;
+  position: relative;
+}
+
+/* 多行代码块内部的 code 标签 */
+#modalBody pre code {
+  display: block;              /* 保证多行显示 */
+  width: 100%;
+  color: inherit;
+  background-color: transparent; /* 不给 code 单独背景，继承自 pre */
+  padding: 0;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* 拷贝按钮 */
+#modalBody .copy-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  opacity: 0;
+  transition: opacity .2s;
+  background-color: #0d6efd;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#modalBody pre:hover .copy-btn,
+#modalBody code.inline-code:hover .copy-btn {
+  opacity: 1;
+}
+
+#modalBody code.inline-code {
+  position: relative;
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: #f1f3f4;
+  border: 1px solid #dcdcdc;
+  border-radius: 3px;
+}
+
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/clipboard-polyfill/dist/clipboard-polyfill.min.js"></script>
+
+<!-- 1. 最新 marked + GFM 插件 -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<!-- 2. Prism 核心 + 语言包 + 行号插件 -->
+<link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/line-numbers/prism-line-numbers.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet"/>
+
 
 <form method="get" class="mb-3">
   <div class="input-group">
@@ -62,23 +178,128 @@
   </div>
 </div>
 
-<!-- 双击行加载详情 -->
+<!-- 3. 一键配置：GFM + 高亮 + Bootstrap 表格 -->
 <script>
-  /* 当前登录用户身份 */
+/* ① 启用 GFM + 高亮 */
+marked.setOptions({
+  gfm: true,               // GitHub Flavored Markdown
+  breaks: true,            // 换行符直接换行
+  highlight: function (code, lang) {
+    if (lang && Prism.languages[lang]) {
+      return Prism.highlight(code, Prism.languages[lang], lang);
+    }
+    return Prism.highlight(code, Prism.languages.plaintext, 'plaintext');
+  }
+});
+
+function addCopyListeners() {
+    document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+    const codeElement = button.parentNode;
+    if (codeElement && codeElement.tagName === 'CODE') {
+      const code = codeElement.textContent.replace('Copy', '').trim(); 
+      try {
+          clipboard.writeText(code).then(() => {
+          button.textContent = 'Copied';
+          setTimeout(() => button.textContent = 'Copy', 1500);
+          }).catch(err => {
+              console.error('Failed to copy text: ', err);
+          });
+        } catch (err) {
+          console.error('Clipboard API not available', err);
+          alert('Your browser does not support the Clipboard API. Please copy the code manually.');
+        }
+    } else {
+      const codeElement = button.nextElementSibling;
+      if (codeElement) {
+        const code = button.nextElementSibling.textContent;
+        try {
+            clipboard.writeText(code).then(() => {
+            button.textContent = 'Copied';
+            setTimeout(() => button.textContent = 'Copy', 1500);
+            }).catch(err => {
+              console.error('Failed to copy text: ', err);
+            });
+        } catch (err) {
+          console.error('Clipboard API not available', err);
+          alert('Your browser does not support the Clipboard API. Please copy the code manually.');
+        }
+      } else {
+        console.error('No code element found next to the button');
+      }
+    }
+  });
+});
+}
+
+function renderMarkdown(src) {
+  let html = marked.parse(src);
+
+  // 代码块加行号和拷贝按钮
+  html = html.replace(
+    /<pre><code>([\s\S]*?)<\/code><\/pre>/g,
+    (match, code) => {
+      return `
+        <pre>
+          <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
+          <code>${code}</code>
+        </pre>
+      `;
+    }
+  );
+
+  // 行内代码：浅灰背景 + 拷贝按钮
+  html = html.replace(/<code>(.*?)<\/code>/g, (match, code) => {
+    return `
+      <code class="inline-code">
+        <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
+        ${code}
+      </code>
+    `;
+  });
+
+  // 表格包一层可滚动 div（解决超宽）
+  html = html.replace(/<table>/g, '<div class="table-responsive"><table class="table table-sm table-bordered"><thead class="table-light">');
+  html = html.replace(/<\/table>/g, '</table></div>');
+
+  // 弹出后让 Prism 高亮 + 按钮可用
+  setTimeout(() => {
+    Prism.highlightAll();
+    addCopyListeners();
+  }, 0);
+
+  return html;
+}
+
+<!-- 双击行加载详情 -->
+/* 当前登录用户身份 */
 const userIsSuperuser = {{ user.is_superuser|yesno:"true,false" }};
 const currentUsername = '{{ user.username|escapejs }}';
 const allProblems = {{ problems_json|safe }};
 
 // 把原始文本转义并保留空格、换行
-function preserveText(text) {
+function preserveText(text, editorType = 'plain') {
   if (!text) return '-';
-  // 1. 转义 <  >  & 等
-  const safe = document.createElement('div');
-  safe.textContent = text || '';
-  // 2. 把空格替换为 &nbsp;，换行替换为 <br>
-  return safe.innerHTML
-              .replace(/^(\s+)/gm, (_, space) => space.replace(/ /g, '\u00A0').replace(/\t/g, '\u00A0\u00A0\u00A0\u00A0'))
-              .replace(/\n/g, '<br>');   // 换行
+
+  if (editorType === 'markdown') {
+    const html = renderMarkdown(text);
+    // 让 Prism 重新扫描高亮 + 行号
+    setTimeout(() => Prism.highlightAll(), 0);
+    return html;
+    // 使用Markdown渲染
+    //const hardBreak = text.replace(/\n/g, '\n\n');
+    //return marked.parse(hardBreak);
+  } else {
+    // 普通文本，保留换行和空格
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    
+    return escaped.replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
+  }
 }
 
 // 从URL中提取文件名 
@@ -142,10 +363,10 @@ function renderTable(data) {
         <p><strong>No.</strong> ${p.id}</p>
         <p><strong>Key Words:</strong> ${p.key_words}</p>
         <p><strong>Title:</strong> ${p.title}</p>
-        <p><strong>Description:</strong><br>${preserveText(p.description)}</p>
-        <p><strong>Root Cause:</strong><br>${preserveText(p.root_cause)}<br>${rootCauseFileLink}</p>
-        <p><strong>Solutions:</strong><br>${preserveText(p.solutions)}<br>${solutionsFileLink}</p>
-        <p><strong>Others:</strong><br>${preserveText(p.others)}<br>${othersFileLink}</p>
+        <p><strong>Description:</strong><br>${preserveText(p.description, p.description_editor_type || 'plain')}</p>
+        <p><strong>Root Cause:</strong><br>${preserveText(p.root_cause, p.root_cause_editor_type || 'plain')}<br>${rootCauseFileLink}</p>
+        <p><strong>Solutions:</strong><br>${preserveText(p.solutions, p.solutions_editor_type || 'plain')}<br>${solutionsFileLink}</p>
+        <p><strong>Others:</strong><br>${preserveText(p.others, p.others_editor_type || 'plain')}<br>${othersFileLink}</p>
         <p><strong>Created:</strong> ${p.create_time}</p>
         <p><strong>Updated:</strong> ${p.update_time}</p>
       `;

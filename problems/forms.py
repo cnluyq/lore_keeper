@@ -6,11 +6,17 @@ class ProblemForm(forms.ModelForm):
     class Meta:
         model = Problem
         fields = [
-            'key_words', 'title', 'description',
-            'root_cause', 'root_cause_file',
-            'solutions', 'solutions_file',
-            'others', 'others_file', 'is_public'
+            'key_words', 'title', 'description', 'description_editor_type',
+            'root_cause', 'root_cause_editor_type', 'root_cause_file',
+            'solutions', 'solutions_editor_type', 'solutions_file',
+            'others', 'others_editor_type', 'others_file', 'is_public'
         ]
+        widgets = {
+            'description_editor_type': forms.HiddenInput(),
+            'root_cause_editor_type': forms.HiddenInput(),
+            'solutions_editor_type': forms.HiddenInput(),
+            'others_editor_type': forms.HiddenInput(),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
