@@ -216,8 +216,8 @@ function initEditor(fieldName) {
         },
         "|", "quote", "unordered-list", "ordered-list",
         "|", "link", "image", "table", "horizontal-rule",
-        "|", "preview", "side-by-side", "fullscreen",
-        "|", "guide", // 官方语法帮助
+        "|", "preview", "side-by-side",
+        "|",
         {
           name: "upload",
           action: function customUpload(editor) {
@@ -234,7 +234,9 @@ function initEditor(fieldName) {
             editor.codemirror.replaceSelection(`**${new Date().toLocaleString()}**`);
           },
           className: "fa fa-clock-o", title: "Insert DateTime"
-        }
+        },
+        "|","guide",
+        "|","fullscreen"
       ]
     });
 
