@@ -131,10 +131,10 @@
 
 {% if user.is_authenticated %}
 <div class="mb-3">
-  <a class="btn btn-primary" href="{% url 'problem_add' %}">Add Item</a>
+  <a class="btn btn-primary bi bi-plus" href="{% url 'problem_add' %}">Add Item</a>
   {% if user.is_superuser %}
-    <a class="btn btn-success" href="{% url 'export_json' %}">Export JSON</a>
-    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#importModal">Import JSON</button>
+    <a class="btn btn-success bi bi-download" href="{% url 'export_json' %}"> Export JSON</a>
+    <button class="btn btn-info bi bi-upload" data-bs-toggle="modal" data-bs-target="#importModal"> Import JSON</button>
   {% endif %}
 </div>
 {% endif %}
@@ -240,10 +240,7 @@ function renderMarkdown(src) {
     /<pre><code>([\s\S]*?)<\/code><\/pre>/g,
     (match, code) => {
       return `
-        <pre>
-          <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
-          <code>${code}</code>
-        </pre>
+        <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code>${code}</code></pre>
       `;
     }
   );
@@ -251,10 +248,7 @@ function renderMarkdown(src) {
   // 行内代码：浅灰背景 + 拷贝按钮
   html = html.replace(/<code>(.*?)<\/code>/g, (match, code) => {
     return `
-      <code class="inline-code">
-        <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
-        ${code}
-      </code>
+      <code class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
     `;
   });
 
