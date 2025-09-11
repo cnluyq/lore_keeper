@@ -336,8 +336,8 @@ function renderTable(data) {
       {% if user.is_authenticated %}
       <td>
         ${ userIsSuperuser || p.created_by === currentUsername ? `
-          <a class="btn btn-sm btn-warning" href="/edit/${p.id}/">Edit</a>
-          <a class="btn btn-sm btn-danger" href="/delete/${p.id}/" onclick="return confirm('Delete?')">Delete</a>
+          <a class="btn btn-sm btn-warning bi bi-pencil" href="/edit/${p.id}/">Edit</a>
+          <a class="btn btn-sm btn-danger bi bi-trash" href="/delete/${p.id}/" onclick="return confirm('Delete?')">Delete</a>
         ` : '' }
       </td>
       {% endif %}
