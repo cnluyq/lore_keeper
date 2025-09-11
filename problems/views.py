@@ -155,9 +155,9 @@ def problem_delete(request, pk):
 def export_json(request):
     data = list(
         Problem.objects.all().values(
-            'id', 'key_words', 'title', 'description',
-            'root_cause', 'solutions', 'others',
-            'create_time', 'update_time'
+            'id', 'key_words', 'title', 'description', 'description_editor_type',
+            'root_cause', 'root_cause_editor_type', 'solutions', 'solutions_editor_type',
+            'others', 'others_editor_type', 'create_time', 'update_time'
         )
     )
     response = HttpResponse(
@@ -175,6 +175,11 @@ def import_json(request):
         try:
             data = json.load(file)
             for item in data:
+                item.setdefault('description_editor_type', 'plain')
+                item.setdefault('root_cause_editor_type', 'plain')
+                item.setdefault('solutions_editor_type', 'plain')
+                item.setdefault('others_editor_type', 'plain')
+
                 item.pop('id', None)  # 防止主键冲突
                 Problem.objects.create(created_by=request.user, **item)
             # 上传成功后直接跳转回列表页
