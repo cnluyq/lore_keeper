@@ -1,4 +1,5 @@
 import json
+import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, authenticate
@@ -119,11 +120,40 @@ def problem_edit(request, pk):
         raise PermissionDenied
 
     if request.method == 'POST':
+        old_files = {}
+        for field in ['root_cause_file', 'solutions_file', 'others_file']:
+            old_files[field] = getattr(problem, field)   # 这里一定是 FieldFile 或空
+
         form = ProblemForm(request.POST, request.FILES, instance=problem)
         if form.is_valid():
             processed_data = SensitiveDataProcessor.process_form_data(request.POST)
             form = ProblemForm(processed_data, request.FILES, instance=problem)
             if form.is_valid():
+                file_fields = ['root_cause_file', 'solutions_file', 'others_file']
+                for field in file_fields:
+                    new_file = form.cleaned_data.get(field)  # 上传的新文件或 False/None(False 表示勾了 clear)
+                    old_file = old_files[field]
+                    print(f'[DEBUG] new_file:',new_file)
+                    print(f'[DEBUG] old_file:',old_file)
+                    if old_file and (not new_file or new_file != old_file):
+                        path = old_file.path
+                        print(f'[DEBUG] will delete {field}: {path}')
+                        try:
+                            if os.path.isfile(path):
+                                os.remove(path)
+                                print(f'[DEBUG] {path} is deleted')
+                            else:
+                                print(f'[DEBUG] {path} does not exist')
+                        except Exception as e:
+                            print(f'[DEBUG] failed to delete {path}: {e}')
+                        # 数据库置空
+                        old_file.delete(save=False)
+
+                    if new_file is False:
+                        setattr(problem, field, None)  # 如果是 False，则置空
+                    else:
+                        setattr(problem, field, new_file)  # 否则赋上新值
+
                 form.save()
                 return redirect('problem_list')
     else:
