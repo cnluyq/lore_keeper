@@ -36,76 +36,76 @@
   }
 
 
-/* 单行代码：整行浅灰背景 */
-#modalBody code:not(pre code) {
-  display: block;              /* 单行 code 也占满整行 */
-  width: 100%;
-  color: inherit;
-  background-color: #f1f3f4;   /* 浅灰背景 */
-  padding: 0.75rem;
-  margin: 0.5rem 0;
-  line-height: 1.5;
-  border: 1px solid #dcdcdc;
-  border-radius: 3px;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-}
+  /* 单行代码：整行浅灰背景 */
+  #modalBody code:not(pre code) {
+    display: block;              /* 单行 code 也占满整行 */
+    width: 100%;
+    color: inherit;
+    background-color: #f1f3f4;   /* 浅灰背景 */
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    line-height: 1.5;
+    border: 1px solid #dcdcdc;
+    border-radius: 3px;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
 
-/* 多行代码块：整行浅灰背景 */
-#modalBody pre {
-  display: block;
-  width: 100%;
-  color: inherit;
-  background-color: #f1f3f4;   /* 浅灰背景 */
-  padding: 0.75rem;
-  margin: 0.5rem 0;
-  line-height: 1.5;
-  border: 1px solid #dcdcdc;
-  border-radius: 3px;
-  position: relative;
-}
+  /* 多行代码块：整行浅灰背景 */
+  #modalBody pre {
+    display: block;
+    width: 100%;
+    color: inherit;
+    background-color: #f1f3f4;   /* 浅灰背景 */
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    line-height: 1.5;
+    border: 1px solid #dcdcdc;
+    border-radius: 3px;
+    position: relative;
+  }
 
-/* 多行代码块内部的 code 标签 */
-#modalBody pre code {
-  display: block;              /* 保证多行显示 */
-  width: 100%;
-  color: inherit;
-  background-color: transparent; /* 不给 code 单独背景，继承自 pre */
-  padding: 0;
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-}
+  /* 多行代码块内部的 code 标签 */
+  #modalBody pre code {
+    display: block;              /* 保证多行显示 */
+    width: 100%;
+    color: inherit;
+    background-color: transparent; /* 不给 code 单独背景，继承自 pre */
+    padding: 0;
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
 
-/* 拷贝按钮 */
-#modalBody .copy-btn {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  font-size: 0.75rem;
-  padding: 2px 6px;
-  opacity: 0;
-  transition: opacity .2s;
-  background-color: #0d6efd;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-}
+  /* 拷贝按钮 */
+  #modalBody .copy-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    opacity: 0;
+    transition: opacity .2s;
+    background-color: #0d6efd;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
 
-#modalBody pre:hover .copy-btn,
-#modalBody code.inline-code:hover .copy-btn {
-  opacity: 1;
-}
+  #modalBody pre:hover .copy-btn,
+  #modalBody code.inline-code:hover .copy-btn {
+    opacity: 1;
+  }
 
-#modalBody code.inline-code {
-  position: relative;
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  background-color: #f1f3f4;
-  border: 1px solid #dcdcdc;
-  border-radius: 3px;
-}
+  #modalBody code.inline-code {
+    position: relative;
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background-color: #f1f3f4;
+    border: 1px solid #dcdcdc;
+    border-radius: 3px;
+  }
   /* 图片自适应样式 */
   img {
     max-width: 100%; /* 图片最大宽度为容器宽度 */
@@ -113,6 +113,29 @@
     display: block;  /* 块级元素，确保图片独占一行 */
     margin: 0 auto;  /* 居中显示 */
   }
+
+  blockquote {
+    position: relative; /* 使用相对定位 */
+    margin: 1em 0;
+    padding: 0.5em 20px;
+    color: #666;
+    border-left: 1.5px solid transparent; /* 添加透明边框，宽度为2.5px */
+  }
+
+  blockquote p {
+    margin: 0; /* 移除段落的默认外边距 */
+  }
+
+  blockquote::before {
+    content: ''; /* 使用伪元素添加边框 */
+    position: absolute; /* 绝对定位 */
+    top: 0;
+    right: 100%; /* 将伪元素放置在 blockquote 的左侧 */
+    width: 2.5px; /* 边框宽度调整为2.5px */
+    height: 100%; /* 伪元素的高度与 blockquote 相同 */
+    background-color: #ccc; /* 边框颜色调整为灰色 */
+  }
+}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/clipboard-polyfill/dist/clipboard-polyfill.min.js"></script>
