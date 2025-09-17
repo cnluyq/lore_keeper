@@ -19,6 +19,7 @@ class Problem(models.Model):
     root_cause_editor_type = models.CharField(max_length=10, choices=[('markdown', 'Markdown'), ('plain', 'Plain Text')], default='plain')
     solutions_editor_type = models.CharField(max_length=10, choices=[('markdown', 'Markdown'), ('plain', 'Plain Text')], default='plain')
     others_editor_type = models.CharField(max_length=10, choices=[('markdown', 'Markdown'), ('plain', 'Plain Text')], default='plain')
+    uploaded_images = models.TextField(blank=True, null=True) 
 
     class Meta:
         ordering = ['-create_time']
@@ -41,3 +42,17 @@ class SensitiveWord(models.Model):
     def __str__(self):
         return f"{self.word} -> {self.replacement} ({'enable' if self.is_active else 'disable'})"
 
+
+import os
+import json
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+from .models import Problem
+
+@receiver(post_delete, sender=Problem)
+def auto_delete_files_on_problem_delete(sender, instance, **kwargs):
+    # 删除 root_cause_file, solutions_file, others_file
+    for field in ['root_cause_file', 'solutions_file', 'others_file']:
+        file = getattr(instance, field, None)
+        if file and os.path.isfile(file.path):
+            os.remove(file.path)

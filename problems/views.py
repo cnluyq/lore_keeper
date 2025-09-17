@@ -348,3 +348,19 @@ def sensitive_word_delete(request, pk):
     SensitiveDataProcessor.clear_sensitive_words_cache()
     messages.success(request, '敏感词已删除')
     return redirect('sensitive_word_list')
+
+from django.views.decorators.csrf import csrf_exempt
+from django.core.files.storage import FileSystemStorage
+from django.views.decorators.http import require_POST
+
+@csrf_exempt
+def upload_image(request):
+    if request.method == 'POST' and request.FILES.get('image'):
+        image = request.FILES['image']
+        upload_images_path = os.path.join(settings.MEDIA_ROOT, 'upload_images')
+        fs = FileSystemStorage(location=upload_images_path)
+        filename = fs.save(image.name, image)
+        #image_url = fs.url(filename)
+        image_url = os.path.join(settings.MEDIA_URL, 'upload_images', filename)
+        return JsonResponse({'url': request.build_absolute_uri(image_url)})
+    return JsonResponse({'error': 'Invalid request'}, status=400)

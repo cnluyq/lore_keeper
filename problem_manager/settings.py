@@ -2,7 +2,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-replace-me-in-production'
 DEBUG = True
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '172.18.226.161','andrewwwwww.pythonanywhere.com']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'andrewwwwww.pythonanywhere.com']
 
 INSTALLED_APPS = [
     'django.contrib.admin',

@@ -16,4 +16,5 @@ urlpatterns = [
     path('sensitive-words/edit/<int:pk>/', views.sensitive_word_edit, name='sensitive_word_edit'),
     path('sensitive-words/toggle/<int:pk>/', views.sensitive_word_toggle, name='sensitive_word_toggle'),
     path('sensitive-words/delete/<int:pk>/', views.sensitive_word_delete, name='sensitive_word_delete'),
+    path('upload-image/', views.upload_image, name='upload_image'),
 ]
