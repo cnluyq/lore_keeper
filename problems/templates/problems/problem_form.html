@@ -40,6 +40,13 @@
     max-width: 50vw !important;   
     margin: 0 auto;           
   }
+  /* 图片自适应样式 */
+  img {
+    max-width: 100%; /* 图片最大宽度为容器宽度 */
+    height: auto;    /* 图片高度自动调整 */
+    display: block;  /* 块级元素，确保图片独占一行 */
+    margin: 0 auto;  /* 居中显示 */
+  }
 </style>
 
 <div class="container py-5">
@@ -248,6 +255,31 @@ function initEditor(fieldName) {
   
   // 设置编辑器类型隐藏字段的值
   editorTypeField.value = editorStates[fieldName];
+}
+
+function uploadImage(file, editor) {
+  const formData = new FormData();
+  formData.append('image', file);
+  fetch('/upload-image/', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+    },
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.url) {
+      const imageUrl = data.url;
+      editor.codemirror.replaceSelection(`![Image](${imageUrl})`);
+    } else {
+      alert('Image upload failed.');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Image upload failed.');
+  });
 }
 
 // 切换编辑器类型
