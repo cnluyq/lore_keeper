@@ -115,6 +115,7 @@
       {% if user.is_superuser %}
         <a class="btn btn-outline-light btn-sm ms-2" href="{% url 'user_list' %}">Users</a>
         <a class="btn btn-outline-light btn-sm ms-2" href="{% url 'sensitive_word_list' %}">Sensitive Words</a>
+	<a class="btn btn-outline-light btn-sm ms-2" href="{% url 'isolated_images_list' %}">Resource</a>
       {% endif %}
     </div>
   </div>
