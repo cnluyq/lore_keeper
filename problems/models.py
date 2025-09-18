@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.contrib.auth.models import User
 
 class Problem(models.Model):
@@ -56,3 +57,16 @@ def auto_delete_files_on_problem_delete(sender, instance, **kwargs):
         file = getattr(instance, field, None)
         if file and os.path.isfile(file.path):
             os.remove(file.path)
+
+    # 删除 uploaded_images 中记录的图片
+    if instance.uploaded_images:
+        try:
+            uploaded_images = json.loads(instance.uploaded_images)
+        except json.JSONDecodeError:
+            uploaded_images = []
+        print(f"auto_delete_files_on_problem_delete::uploaded_images:",uploaded_images)
+        for image_name in uploaded_images:
+            image_path = os.path.join(settings.MEDIA_ROOT, 'upload_images', image_name.lstrip('/'))
+            print(f"auto_delete_files_on_problem_delete::image_path",image_path)
+            if os.path.isfile(image_path):
+                os.remove(image_path)
