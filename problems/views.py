@@ -14,6 +14,7 @@ from django.conf import settings
 from django.http import HttpResponseForbidden
 from django.contrib.auth.decorators import user_passes_test
 
+from pathlib import Path
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
@@ -389,3 +390,71 @@ def upload_image(request):
         image_url = os.path.join(settings.MEDIA_URL, 'upload_images', filename)
         return JsonResponse({'url': request.build_absolute_uri(image_url)})
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+# 工具：列出磁盘上 upload_images 目录所有文件
+def _scan_disk_upload_images():
+    root = Path(settings.MEDIA_ROOT) / 'upload_images'
+    if not root.exists():
+        return set()
+    # 保存相对路径（相对于 MEDIA_ROOT）
+    return {str(p.relative_to(settings.MEDIA_ROOT)) for p in root.rglob('*') if p.is_file()}
+
+# 工具：汇总数据库 uploaded_images 字段里所有文件
+def _scan_db_referenced_images():
+    referenced = set()
+    for images_json in Problem.objects.exclude(uploaded_images__isnull=True).values_list('uploaded_images', flat=True):
+        try:
+            images = json.loads(images_json)
+            if isinstance(images, list):
+                referenced.update(images)
+                referenced.update(f"upload_images/{name}" for name in images)
+        except Exception:
+            continue
+    return referenced
+
+def image_size(size_bytes):
+    """把字节转成人可读单位"""
+    for unit in ['B', 'KB', 'MB']:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.1f} GB"
+
+# 管理页面：列表展示
+@user_passes_test(lambda u: u.is_superuser)
+def isolated_images_list(request):
+    disk_files = _scan_disk_upload_images()
+    db_files = _scan_db_referenced_images()
+    isolates = disk_files - db_files
+
+    # 构造可访问的完整 URL（浏览器查看用）
+    isolated_data = []
+    for f in sorted(isolates):
+        abs_path = Path(settings.MEDIA_ROOT) / f
+        size = abs_path.stat().st_size if abs_path.is_file() else 0
+        isolated_data.append({
+            'path': f,
+            'url': settings.MEDIA_URL.rstrip('/') + '/' + f.lstrip('/'),
+            'size': size,
+        })
+
+    return render(request, 'problems/isolated_images_list.html', {'isolates': isolated_data})
+
+# 删除接口：POST 接受文件名列表
+@require_POST
+@csrf_exempt   # 如果你打算用 fetch 手动带 X-CSRFToken
+@user_passes_test(lambda u: u.is_superuser)
+def isolated_images_delete(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+    paths = request.POST.getlist('files')  # 相对路径
+    root = Path(settings.MEDIA_ROOT)
+    deleted = 0
+    for f in paths:
+        # 简单安全校验：只允许 upload_images 下的文件
+        abs_path = (root / f).resolve()
+        if abs_path.is_file() and 'upload_images' in abs_path.parts:
+            abs_path.unlink()
+            deleted += 1
+    #return JsonResponse({'deleted': deleted})
+    return redirect('isolated_images_list')
