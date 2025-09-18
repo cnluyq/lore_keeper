@@ -104,6 +104,13 @@ def problem_add(request):
                 obj = form.save(commit=False)
                 obj.created_by = request.user
                 obj.save()
+
+                # 将会话中的图片路径转移到 uploaded_images 字段中
+                if 'uploaded_images' in request.session:
+                    obj.uploaded_images = json.dumps(request.session['uploaded_images'])
+                    obj.save()
+                    del request.session['uploaded_images']
+
                 return redirect('problem_list')
     else:
         form = ProblemForm()
@@ -129,6 +136,18 @@ def problem_edit(request, pk):
             processed_data = SensitiveDataProcessor.process_form_data(request.POST)
             form = ProblemForm(processed_data, request.FILES, instance=problem)
             if form.is_valid():
+
+                # 将会话中的图片路径转移到 uploaded_images 字段中
+                if 'uploaded_images' in request.session:
+                    if problem.uploaded_images:
+                        uploaded_images = json.loads(problem.uploaded_images)
+                    else:
+                        uploaded_images = []
+                    uploaded_images.extend(request.session['uploaded_images'])
+                    problem.uploaded_images = json.dumps(uploaded_images)
+                    del request.session['uploaded_images']
+
+                # 处理信息中的附件 
                 file_fields = ['root_cause_file', 'solutions_file', 'others_file']
                 for field in file_fields:
                     new_file = form.cleaned_data.get(field)  # 上传的新文件或 False/None(False 表示勾了 clear)
@@ -153,6 +172,7 @@ def problem_edit(request, pk):
                         setattr(problem, field, None)  # 如果是 False，则置空
                     else:
                         setattr(problem, field, new_file)  # 否则赋上新值
+
 
                 form.save()
                 return redirect('problem_list')
@@ -360,7 +380,12 @@ def upload_image(request):
         upload_images_path = os.path.join(settings.MEDIA_ROOT, 'upload_images')
         fs = FileSystemStorage(location=upload_images_path)
         filename = fs.save(image.name, image)
-        #image_url = fs.url(filename)
+        # 将图片名存储在会话中
+        if 'uploaded_images' not in request.session:
+            request.session['uploaded_images'] = []
+        request.session['uploaded_images'].append(filename)
+        request.session.modified = True
+
         image_url = os.path.join(settings.MEDIA_URL, 'upload_images', filename)
         return JsonResponse({'url': request.build_absolute_uri(image_url)})
     return JsonResponse({'error': 'Invalid request'}, status=400)
