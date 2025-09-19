@@ -420,6 +420,20 @@ def image_size(size_bytes):
         size_bytes /= 1024.0
     return f"{size_bytes:.1f} GB"
 
+import subprocess
+
+def home_du_human_linux():
+    try:
+        completed = subprocess.run(
+            ['du', '-sh', os.path.expanduser('~')],
+            text=True,
+            capture_output=True,
+            check=True
+        )
+        return completed.stdout.split()[0]
+    except Exception as e:
+        return 0
+
 # 管理页面：列表展示
 @user_passes_test(lambda u: u.is_superuser)
 def isolated_images_list(request):
@@ -438,7 +452,8 @@ def isolated_images_list(request):
             'size': size,
         })
 
-    return render(request, 'problems/isolated_images_list.html', {'isolates': isolated_data})
+    home_size = home_du_human_linux()
+    return render(request, 'problems/isolated_images_list.html', {'isolates': isolated_data,'home_size': home_size})
 
 # 删除接口：POST 接受文件名列表
 @require_POST
