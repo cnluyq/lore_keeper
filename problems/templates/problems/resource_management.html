@@ -1,0 +1,125 @@
+{% extends 'problems/base.html' %}
+{% block content %}
+<div class="alert alert-info">
+  <i class="bi bi-hdd"></i>
+  Current size of HOME directory: <strong>{{ home_size }}</strong>
+</div>
+
+<div class="container py-4">
+  <!-- ========== 1. 孤立图片 ========== -->
+  <h2 class="mb-3">Isolated Images</h2>
+  <p class="text-muted">The images in list are stored but not used by any items.</p>
+
+  <form id="deleteForm" method="post" action="{% url 'isolated_images_delete' %}">
+    {% csrf_token %}
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered">
+        <thead class="table-light">
+          <tr>
+            <th><input type="checkbox" id="checkAll"></th>
+            <th>Preview</th>
+            <th>Relative Path</th>
+            <th>Size</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in isolates %}
+          <tr>
+            <td><input type="checkbox" name="files" value="{{ item.path }}"></td>
+            <td>
+              <img src="{{ item.url }}" style="max-height:60px; cursor:zoom-in;"
+                   class="img-thumbnail" data-big="{{ item.url }}"
+                   ondblclick="showOriginal(this.dataset.big)">
+            </td>
+            <td><code>{{ item.path }}</code></td>
+            <td>{{ item.size }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center">No isolated images.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button type="submit" class="btn btn-danger"
+            onclick="return confirm('Confirm to delete selected images?')">Delete</button>
+  </form>
+
+  <!-- ========== 2. 大文件扫描 ========== -->
+  <h4 class="mt-5">Large Files (≥ {{ threshold_kb }} KB)</h4>
+
+  <form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+      <label class="form-label">Size threshold (KB)</label>
+      <div class="input-group input-group-sm w-auto">
+      <input type="text" style="height:30px; width:100px;" class="form-control form-control-sm w-25" name="kb" pattern="[0-9]+" value="{{ threshold_kb }}" min="1">
+      <button class="btn btn-primary btn-sm" type="submit">Filter</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered">
+      <thead class="table-light">
+        <tr>
+          <th>Preview</th>
+          <th>Relative Path</th>
+          <th>Size</th>
+          <th>Belongs to Item</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in large_files %}
+        <tr>
+          <td>
+            <img src="{{ f.url }}" style="max-height:60px; cursor:zoom-in;"
+                 class="img-thumbnail" ondblclick="viewOriginal('{{ f.url }}')">
+          </td>
+          <td><code>{{ f.path }}</code></td>
+          <td>{{ f.size }}</td>
+          <td>
+            {% for owner in f.owners %}
+              <a class="badge bg-primary me-1" href="{% url 'problem_edit' owner.pk %}">
+                #{{ owner.id }} - {{ owner.title|truncatechars:20 }}
+              </a>
+            {% empty %}
+              <span class="text-muted">Not referenced</span>
+            {% endfor %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center">No files ≥ {{ threshold_kb }} KB.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 原图弹窗（两段共用） -->
+<div class="modal fade" id="imgModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Original Image</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center p-0">
+        <img id="modalImg" src="" class="img-fluid" style="max-height: 85vh;">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 孤立图片全选
+document.getElementById('checkAll')?.addEventListener('change', function () {
+  document.querySelectorAll('input[name="files"]').forEach(cb => cb.checked = this.checked);
+});
+
+// 原图弹窗共用
+function showOriginal(src) {
+  const modal = new bootstrap.Modal(document.getElementById('imgModal'));
+  document.getElementById('modalImg').src = src;
+  modal.show();
+}
+</script>
+{% endblock %}

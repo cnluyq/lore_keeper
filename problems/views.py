@@ -435,27 +435,6 @@ def home_du_human_linux():
     except Exception as e:
         return 0
 
-# 管理页面：列表展示
-@user_passes_test(lambda u: u.is_superuser)
-def isolated_images_list(request):
-    disk_files = _scan_disk_upload_images()
-    db_files = _scan_db_referenced_images()
-    isolates = disk_files - db_files
-
-    # 构造可访问的完整 URL（浏览器查看用）
-    isolated_data = []
-    for f in sorted(isolates):
-        abs_path = Path(settings.MEDIA_ROOT) / f
-        size = abs_path.stat().st_size if abs_path.is_file() else 0
-        isolated_data.append({
-            'path': f,
-            'url': settings.MEDIA_URL.rstrip('/') + '/' + f.lstrip('/'),
-            'size': size,
-        })
-
-    home_size = home_du_human_linux()
-    return render(request, 'problems/isolated_images_list.html', {'isolates': isolated_data,'home_size': home_size})
-
 # 删除接口：POST 接受文件名列表
 @require_POST
 @csrf_exempt   # 如果你打算用 fetch 手动带 X-CSRFToken
@@ -473,9 +452,66 @@ def isolated_images_delete(request):
             abs_path.unlink()
             deleted += 1
     #return JsonResponse({'deleted': deleted})
-    return redirect('isolated_images_list')
+    return redirect('resource_management')
 
 @require_POST
 def clear_uploaded_images(request):
     request.session.pop('uploaded_images', None)
     return JsonResponse({'status': 'ok'})
+
+@user_passes_test(lambda u: u.is_superuser)
+def resource_management(request):
+
+    disk_files = _scan_disk_upload_images()
+    db_files = _scan_db_referenced_images()
+    isolates = disk_files - db_files
+
+    # 构造可访问的完整 URL（浏览器查看用）
+    isolated_data = []
+    for f in sorted(isolates):
+        abs_path = Path(settings.MEDIA_ROOT) / f
+        size = abs_path.stat().st_size if abs_path.is_file() else 0
+        isolated_data.append({
+            'path': f,
+            'url': settings.MEDIA_URL.rstrip('/') + '/' + f.lstrip('/'),
+            'size': size,
+        })
+
+    home_size = home_du_human_linux()
+
+    # 大文件扫描
+    threshold_kb = int(request.GET.get('kb', 512))
+    large_files  = []
+    root = Path(settings.MEDIA_ROOT)
+    for p in root.rglob('*'):
+        if p.is_file() and p.stat().st_size > threshold_kb * 1024:
+            rel_path = str(p.relative_to(root))
+            file_name = p.name
+
+            # 附件匹配（相对路径）
+            owners_att = Problem.objects.filter(
+                Q(root_cause_file=rel_path) |
+                Q(solutions_file=rel_path) |
+                Q(others_file=rel_path)
+            )
+
+            # upload_images 匹配（仅文件名）
+            owners_up = Problem.objects.filter(
+                uploaded_images__icontains=file_name     # JSON 里包含文件名
+            )
+
+            owners = (owners_att | owners_up).distinct()
+
+            large_files.append({
+                'path': rel_path,
+                'url' : settings.MEDIA_URL.rstrip('/') + '/' + rel_path.lstrip('/'),
+                'size': p.stat().st_size,
+                'owners': owners,
+            })
+
+    return render(request, 'problems/resource_management.html', {
+        'isolates'      : isolated_data,
+        'large_files'   : large_files,
+        'threshold_kb'  : threshold_kb,
+        'home_size'     : home_size,
+    })
