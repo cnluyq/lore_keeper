@@ -388,7 +388,7 @@ def upload_image(request):
         request.session.modified = True
 
         image_url = os.path.join(settings.MEDIA_URL, 'upload_images', filename)
-        return JsonResponse({'url': request.build_absolute_uri(image_url)})
+        return JsonResponse({'url': image_url})
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 # 工具：列出磁盘上 upload_images 目录所有文件
