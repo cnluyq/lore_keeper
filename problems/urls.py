@@ -19,4 +19,5 @@ urlpatterns = [
     path('upload-image/', views.upload_image, name='upload_image'),
     path('staff/isolated-images/', views.isolated_images_list, name='isolated_images_list'),
     path('staff/isolated-images/delete/', views.isolated_images_delete, name='isolated_images_delete'),
+    path('clear-uploaded-images/', views.clear_uploaded_images, name='clear_uploaded_images'),
 ]

@@ -143,7 +143,20 @@
 
       <div class="col-12 text-center">
         <button class="btn btn-primary px-4">Save</button>
-        <a class="btn btn-outline-secondary px-4 ms-2" href="{% url 'problem_list' %}">Cancel</a>
+	<a class="btn btn-outline-secondary px-4 ms-2" href="javascript:void(0)"
+          onclick="fetch('{% url 'clear_uploaded_images' %}',{
+            method:'POST',
+            headers:{
+              'X-CSRFToken':'{{ csrf_token }}'
+            },
+            credentials:'same-origin'
+          }).finally(()=>{
+            location.href='{% url 'problem_list' %}';
+          });
+          return false;
+        ">
+        Cancel
+        </a>
       </div>
     </form>
   </div>
