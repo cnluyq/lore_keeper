@@ -474,3 +474,8 @@ def isolated_images_delete(request):
             deleted += 1
     #return JsonResponse({'deleted': deleted})
     return redirect('isolated_images_list')
+
+@require_POST
+def clear_uploaded_images(request):
+    request.session.pop('uploaded_images', None)
+    return JsonResponse({'status': 'ok'})
