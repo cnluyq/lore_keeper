@@ -378,9 +378,10 @@ from django.views.decorators.http import require_POST
 def upload_image(request):
     if request.method == 'POST' and request.FILES.get('image'):
         image = request.FILES['image']
+        clean_name = image.name.replace(' ', '_')
         upload_images_path = os.path.join(settings.MEDIA_ROOT, 'upload_images')
         fs = FileSystemStorage(location=upload_images_path)
-        filename = fs.save(image.name, image)
+        filename = fs.save(clean_name, image)
         # 将图片名存储在会话中
         if 'uploaded_images' not in request.session:
             request.session['uploaded_images'] = []
