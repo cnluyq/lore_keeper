@@ -17,7 +17,7 @@ urlpatterns = [
     path('sensitive-words/toggle/<int:pk>/', views.sensitive_word_toggle, name='sensitive_word_toggle'),
     path('sensitive-words/delete/<int:pk>/', views.sensitive_word_delete, name='sensitive_word_delete'),
     path('upload-image/', views.upload_image, name='upload_image'),
-    path('staff/isolated-images/', views.isolated_images_list, name='isolated_images_list'),
+    path('staff/resource-management/', views.resource_management, name='resource_management'),
     path('staff/isolated-images/delete/', views.isolated_images_delete, name='isolated_images_delete'),
     path('clear-uploaded-images/', views.clear_uploaded_images, name='clear_uploaded_images'),
 ]
