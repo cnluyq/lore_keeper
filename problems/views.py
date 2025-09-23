@@ -188,19 +188,6 @@ def problem_delete(request, pk):
     problem.delete()
     return redirect('problem_list')
 
-# ---------- 导入/导出 ----------
-#@login_required
-#def export_json(request):
-#    data = list(Problem.objects.all().values(
-#        'id', 'key_words', 'title', 'description',
-#        'root_cause', 'solutions', 'others',
-#       'create_time', 'update_time'
-#    ))
-#    response = HttpResponse(json.dumps(data, ensure_ascii=False, indent=2),
-#                            content_type='application/json')
-#    response['Content-Disposition'] = 'attachment; filename="problems.json"'
-#    return response
-
 @login_required
 @superuser_required
 def export_json(request):
@@ -208,7 +195,8 @@ def export_json(request):
         Problem.objects.all().values(
             'id', 'key_words', 'title', 'description', 'description_editor_type',
             'root_cause', 'root_cause_editor_type', 'solutions', 'solutions_editor_type',
-            'others', 'others_editor_type', 'create_time', 'update_time'
+            'others', 'others_editor_type', 'create_time', 'update_time',
+            'root_cause_file','solutions_file','others_file'
         )
     )
     response = HttpResponse(
@@ -230,6 +218,12 @@ def import_json(request):
                 item.setdefault('root_cause_editor_type', 'plain')
                 item.setdefault('solutions_editor_type', 'plain')
                 item.setdefault('others_editor_type', 'plain')
+
+                for f in ['root_cause_file', 'solutions_file', 'others_file']:
+                   path = item.get(f) or ''
+                   if path and not os.path.isfile(os.path.join(settings.MEDIA_ROOT, path)):
+                       path = ''
+                   item[f] = path or None
 
                 item.pop('id', None)  # 防止主键冲突
                 Problem.objects.create(created_by=request.user, **item)
