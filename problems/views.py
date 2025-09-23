@@ -219,12 +219,6 @@ def import_json(request):
                 item.setdefault('solutions_editor_type', 'plain')
                 item.setdefault('others_editor_type', 'plain')
 
-                for f in ['root_cause_file', 'solutions_file', 'others_file']:
-                   path = item.get(f) or ''
-                   if path and not os.path.isfile(os.path.join(settings.MEDIA_ROOT, path)):
-                       path = ''
-                   item[f] = path or None
-
                 item.pop('id', None)  # 防止主键冲突
                 Problem.objects.create(created_by=request.user, **item)
             # 上传成功后直接跳转回列表页
