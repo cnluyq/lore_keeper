@@ -239,7 +239,7 @@ def export_json(request):
     blob = nonce + encrypted
 
     response = HttpResponse(blob, content_type='application/octet-stream')
-    response['Content-Disposition'] = 'attachment; filename="problems.bin"'
+    response['Content-Disposition'] = 'attachment; filename="items.bin"'
     return response
 
 @login_required
@@ -248,7 +248,6 @@ def import_json(request):
     if request.method == 'POST' and request.FILES.get('file'):
         password = request.POST.get('password')
         file_size = request.FILES['file'].size
-        print('=== 收到密码:', password, '文件大小:', file_size)
         if not password:
             return JsonResponse({'error': 'need password'}, status=400)
 
@@ -263,8 +262,6 @@ def import_json(request):
             cipher = ChaCha20Poly1305(key)
             zipped = cipher.decrypt(nonce, ct, associated_data=None)
             data = json.loads(gzip.decompress(zipped).decode())
-
-            print('解密成功 条数', len(data))
 
             for item in data:
                 item.setdefault('description_editor_type', 'plain')
@@ -314,7 +311,7 @@ def user_delete(request, pk):
     if request.method == 'POST':
         # 获取要删除的问题 id
         selected_ids = request.POST.getlist('problem_ids')
-        print('========== selected_ids ==========', selected_ids) 
+        print('[DEBUG]========== selected_ids ==========', selected_ids) 
         if selected_ids:
             Problem.objects.filter(id__in=selected_ids).delete()
             messages.success(request, f"Deleted {len(selected_ids)} problem(s).")
