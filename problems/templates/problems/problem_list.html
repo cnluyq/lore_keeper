@@ -425,8 +425,8 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 renderTable(allProblems);
 
 function exportWithPwd() {
-  const pwd = prompt("请输入导出密码（≥8 位）：");
-  if (!pwd || pwd.length < 8) return alert("密码太短！");
+  const pwd = prompt("Please input a password( ≥8 letters) for encryting export data：");
+  if (!pwd || pwd.length < 8) return alert("password is too short！");
   fetch("{% url 'export_json' %}", {
     method: "POST",
     headers: {
@@ -444,40 +444,33 @@ function exportWithPwd() {
   });
 }
 
-
 function importWithPwd() {
   const file = document.getElementById('importFile').files[0];
   if (!file) return document.getElementById('importFile').click();
 
-  const pwd = prompt("请输入导入密码：");
-  if (!pwd) return;                         // 这里提前 return 就是元凶
+  const pwd = prompt("Please input a password for decryting import data");
+  if (!pwd) return;
 
   const form = new FormData();
   form.append('file', file);
   form.append('password', pwd);
-fetch("{% url 'import_json' %}", {
-    method: 'POST',
-    headers: {"X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value},
-    body: form
-})
-.then(r => {
-    // 无论 200/400 都强制读 JSON
-    return r.json().then(data => ({ ok: r.ok, data }));
-})
-.then(({ok, data}) => {
-    console.log(data);               // 现在一定是普通对象
-    const msg = data.message || data.error || 'Done';
-    alert(msg);
-    if (ok) location.reload();       // 只有 200 才刷新
-})
-.catch(err => {
-    console.error(err);
-    alert('网络错误：' + err);
-});
-
-
-
-
+  fetch("{% url 'import_json' %}", {
+      method: 'POST',
+      headers: {"X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value},
+      body: form
+  })
+  .then(r => {
+      return r.json().then(data => ({ ok: r.ok, data }));
+  })
+  .then(({ok, data}) => {
+      const msg = data.message || data.error || 'Done';
+      alert(msg);
+      if (ok) location.reload();       // 只有 200 才刷新
+  })
+  .catch(err => {
+      console.error(err);
+      alert('Network error:' + err);
+  });
 }
 document.getElementById('importFile').onchange = importWithPwd;
 
