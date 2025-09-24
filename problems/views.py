@@ -23,6 +23,30 @@ from .models import SensitiveWord
 from .forms import SensitiveWordForm
 from .sensitive_utils import SensitiveDataProcessor
 
+from django.views.decorators.csrf import csrf_exempt
+from django.core.files.storage import FileSystemStorage
+from django.views.decorators.http import require_POST
+
+from django.core.serializers.json import DjangoJSONEncoder
+from django.contrib.auth import logout
+from django.contrib.auth.views import LoginView
+
+from django.contrib.admin.views.decorators import staff_member_required
+from .forms import StaffUserCreationForm
+
+from django.contrib import messages
+from .models import SensitiveWord
+from .forms import SensitiveWordForm
+from .sensitive_utils import SensitiveDataProcessor
+
+from hashlib import pbkdf2_hmac
+import base64, gzip
+from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
+def pwd_to_chacha_key(password: str, salt: bytes = b'lore_keeper_sb') -> bytes:
+    """PBKDF2 -> 32 B -> ChaCha20Poly1305 原生密钥"""
+    key = pbkdf2_hmac('sha256', password.encode(), salt, 100_000, dklen=32)
+    return key
+
 def owner_or_superuser_required(view_func):
     """允许创建者或超级用户"""
     def _wrapped_view(request, *args, **kwargs):
@@ -39,7 +63,6 @@ def superuser_required(view_func):
     return user_passes_test(lambda u: u.is_superuser)(view_func)
 
 # ---------- 游客可见 ----------
-from django.core.serializers.json import DjangoJSONEncoder
 def problem_list(request):
     # 一次性返回所有问题数据
     problems = Problem.objects.all().order_by('-create_time')
@@ -87,7 +110,6 @@ def register_view(request):
     return render(request, 'problems/register.html', {'form': form})
 
 def login_view(request):
-    from django.contrib.auth.views import LoginView
     return LoginView.as_view(template_name='problems/login.html')(request)
 
 # ---------- 需登录 ----------
@@ -191,6 +213,13 @@ def problem_delete(request, pk):
 @login_required
 @superuser_required
 def export_json(request):
+    body = json.loads(request.body)
+    password = body.get('password')
+    if not password:
+        return JsonResponse({'error': 'need password'}, status=400)
+
+    key = pwd_to_chacha_key(password)
+
     data = list(
         Problem.objects.all().values(
             'id', 'key_words', 'title', 'description', 'description_editor_type',
@@ -199,20 +228,44 @@ def export_json(request):
             'root_cause_file','solutions_file','others_file'
         )
     )
-    response = HttpResponse(
-        json.dumps(data, cls=DjangoJSONEncoder, ensure_ascii=False, indent=2),
-        content_type='application/json'
-    )
-    response['Content-Disposition'] = 'attachment; filename="problems.json"'
+
+    raw  = json.dumps(data, cls=DjangoJSONEncoder, ensure_ascii=False, indent=2).encode()
+    zipped = gzip.compress(raw)
+
+    cipher = ChaCha20Poly1305(key)
+    nonce  = os.urandom(12)
+    encrypted = cipher.encrypt(nonce, zipped, associated_data=None)
+
+    blob = nonce + encrypted
+
+    response = HttpResponse(blob, content_type='application/octet-stream')
+    response['Content-Disposition'] = 'attachment; filename="problems.bin"'
     return response
 
 @login_required
 @superuser_required
 def import_json(request):
     if request.method == 'POST' and request.FILES.get('file'):
-        file = request.FILES['file']
+        password = request.POST.get('password')
+        file_size = request.FILES['file'].size
+        print('=== 收到密码:', password, '文件大小:', file_size)
+        if not password:
+            return JsonResponse({'error': 'need password'}, status=400)
+
         try:
-            data = json.load(file)
+            blob = request.FILES['file'].read()
+            if len(blob) < 12:
+                raise ValueError('file is too short')
+
+            key = pwd_to_chacha_key(password)
+            nonce, ct = blob[:12], blob[12:]
+
+            cipher = ChaCha20Poly1305(key)
+            zipped = cipher.decrypt(nonce, ct, associated_data=None)
+            data = json.loads(gzip.decompress(zipped).decode())
+
+            print('解密成功 条数', len(data))
+
             for item in data:
                 item.setdefault('description_editor_type', 'plain')
                 item.setdefault('root_cause_editor_type', 'plain')
@@ -221,16 +274,16 @@ def import_json(request):
 
                 item.pop('id', None)  # 防止主键冲突
                 Problem.objects.create(created_by=request.user, **item)
-            # 上传成功后直接跳转回列表页
-            return redirect('problem_list')
+
+            #messages.success(request, f'import {len(data)} items successfully！')
+            return JsonResponse({'message': f'import {len(data)} items successfully', 'error': None})
         except Exception as e:
-            # 出错时仍然返回 JSON，方便调试
-            return JsonResponse({'status': 'error', 'message': str(e)})
+            detail = f'{type(e).__name__}' 
+            return JsonResponse({'status': 'error', 'error': f'failed to import：{detail}: please check inputted password firstly!'}, status=400)
     # GET 请求禁止访问
     return redirect('problem_list')
 
 
-from django.contrib.auth import logout
 
 def logout_view(request):
     logout(request)
@@ -277,8 +330,6 @@ def user_delete(request, pk):
         'problems': problems,
     })
 
-from django.contrib.admin.views.decorators import staff_member_required
-from .forms import StaffUserCreationForm
 
 @staff_member_required
 def user_add(request):
@@ -293,11 +344,6 @@ def user_add(request):
     return render(request, 'problems/user_add.html', {'form': form})
 
 
-
-from django.contrib import messages
-from .models import SensitiveWord
-from .forms import SensitiveWordForm
-from .sensitive_utils import SensitiveDataProcessor
 
 @superuser_required
 def sensitive_word_list(request):
@@ -358,9 +404,6 @@ def sensitive_word_delete(request, pk):
     messages.success(request, '敏感词已删除')
     return redirect('sensitive_word_list')
 
-from django.views.decorators.csrf import csrf_exempt
-from django.core.files.storage import FileSystemStorage
-from django.views.decorators.http import require_POST
 
 @csrf_exempt
 def upload_image(request):

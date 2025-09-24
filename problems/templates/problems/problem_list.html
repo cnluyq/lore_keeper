@@ -162,10 +162,22 @@
 <div class="mb-3">
   <a class="btn btn-primary bi bi-plus" href="{% url 'problem_add' %}">Add Item</a>
   {% if user.is_superuser %}
-    <a class="btn btn-success bi bi-download" href="{% url 'export_json' %}"> Export JSON</a>
-    <button class="btn btn-info bi bi-upload" data-bs-toggle="modal" data-bs-target="#importModal"> Import JSON</button>
+    <button class="btn btn-success bi bi-download" id="btnExport"> Export JSON</button>
+    <input type="file" id="importFile" accept=".bin" style="display:none">
+    <label for="importFile" class="btn btn-info bi bi-upload"> Import JSON</label>
   {% endif %}
 </div>
+{% endif %}
+
+{% if messages %}
+  {% for msg in messages %}
+    <div class="alert alert-success alert-dismissible fade show import-toast"
+         role="alert">
+      {{ msg }}
+      <!-- 手动关闭按钮（可选） -->
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
 {% endif %}
 
 <div class="table-responsive" style="max-height:calc(100vh - 200px); overflow-y:auto;">
@@ -412,6 +424,63 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 // 初始渲染
 renderTable(allProblems);
 
+function exportWithPwd() {
+  const pwd = prompt("请输入导出密码（≥8 位）：");
+  if (!pwd || pwd.length < 8) return alert("密码太短！");
+  fetch("{% url 'export_json' %}", {
+    method: "POST",
+    headers: {
+      "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({password: pwd})
+  })
+  .then(r => r.blob())
+  .then(blob => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "problems.bin";
+    a.click();
+  });
+}
+
+
+function importWithPwd() {
+  const file = document.getElementById('importFile').files[0];
+  if (!file) return document.getElementById('importFile').click();
+
+  const pwd = prompt("请输入导入密码：");
+  if (!pwd) return;                         // 这里提前 return 就是元凶
+
+  const form = new FormData();
+  form.append('file', file);
+  form.append('password', pwd);
+fetch("{% url 'import_json' %}", {
+    method: 'POST',
+    headers: {"X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value},
+    body: form
+})
+.then(r => {
+    // 无论 200/400 都强制读 JSON
+    return r.json().then(data => ({ ok: r.ok, data }));
+})
+.then(({ok, data}) => {
+    console.log(data);               // 现在一定是普通对象
+    const msg = data.message || data.error || 'Done';
+    alert(msg);
+    if (ok) location.reload();       // 只有 200 才刷新
+})
+.catch(err => {
+    console.error(err);
+    alert('网络错误：' + err);
+});
+
+
+
+
+}
+document.getElementById('importFile').onchange = importWithPwd;
+
 </script>
 
 <!-- Import Modal -->
@@ -434,4 +503,22 @@ renderTable(allProblems);
     </form>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const toasts = document.querySelectorAll('.import-toast');
+  toasts.forEach(el => {
+    setTimeout(() => {
+      el.classList.remove('show');          // Bootstrap5 淡出
+      setTimeout(() => el.remove(), 500);   // DOM 清理
+    }, 3000);                               // 3 秒后开始消失
+  });
+});
+
+/* 密码版导出/导入 事件绑定 */
+document.getElementById('btnExport').onclick = exportWithPwd;
+document.getElementById('importFile').onchange = importWithPwd;
+
+</script>
+
 {% endblock %}
