@@ -162,9 +162,9 @@
 <div class="mb-3">
   <a class="btn btn-primary bi bi-plus" href="{% url 'problem_add' %}">Add Item</a>
   {% if user.is_superuser %}
-    <button class="btn btn-success bi bi-download" id="btnExport"> Export JSON</button>
+    <button class="btn btn-success bi bi-download" id="btnExport"> Export Data</button>
     <input type="file" id="importFile" accept=".bin" style="display:none">
-    <label for="importFile" class="btn btn-info bi bi-upload"> Import JSON</label>
+    <label for="importFile" class="btn btn-info bi bi-upload"> Import Data</label>
   {% endif %}
 </div>
 {% endif %}
@@ -483,7 +483,7 @@ document.getElementById('importFile').onchange = importWithPwd;
       {% csrf_token %}
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Import JSON</h5>
+          <h5 class="modal-title">Import Data</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
