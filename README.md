@@ -21,3 +21,5 @@ python manage.py createsuperuser
 
 python manage.py runserver [ip]:[port]
 
+#if run on pythonanywhere for static files in uploads, set following:
+#pythonanywhere->Web->Static files->Enter URL with "/uploads/" and Enter Path with "/home/Andrewwwwww/problem_manager/uploads" 
