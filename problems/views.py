@@ -225,7 +225,7 @@ def export_json(request):
             'id', 'key_words', 'title', 'description', 'description_editor_type',
             'root_cause', 'root_cause_editor_type', 'solutions', 'solutions_editor_type',
             'others', 'others_editor_type', 'create_time', 'update_time',
-            'root_cause_file','solutions_file','others_file'
+            'root_cause_file','solutions_file','others_file','uploaded_images'
         )
     )
 
