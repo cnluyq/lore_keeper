@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64"
+     xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 彩虹渐变 -->
+    <linearGradient id="rainbow" x1="0%" y1="0%" x2="100%" y2="100%"
+                    gradientTransform="rotate(45)">
+      <stop offset="0%"  stop-color="#ff7eb3"/>
+      <stop offset="25%" stop-color="#ffdd80"/>
+      <stop offset="50%" stop-color="#8be3ff"/>
+      <stop offset="75%" stop-color="#a3ffbf"/>
+      <stop offset="100%" stop-color="#ff7eb3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 1. 淡淡亮底：极浅蓝 + 半透明 -->
+  <circle cx="32" cy="32" r="30" fill="#f0f800" fill-opacity="0.2"
+          stroke="#5fa8ff" stroke-width="2"/>
+
+  <!-- 2. 彩虹字母 IM -->
+  <g fill="url(#rainbow)">
+    <rect x="16" y="18" width="8" height="28" rx="4"/>
+    <path d="M29 18 L29 46 L34 46 L34 27 L39 33 L45 27 L45 46 L50 46 L50 18 L45 18 L39 24 L34 18 Z"/>
+      </g>
+</svg>
