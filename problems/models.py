@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -21,6 +22,7 @@ class Problem(models.Model):
     solutions_editor_type = models.CharField(max_length=10, choices=[('markdown', 'Markdown'), ('plain', 'Plain Text')], default='plain')
     others_editor_type = models.CharField(max_length=10, choices=[('markdown', 'Markdown'), ('plain', 'Plain Text')], default='plain')
     uploaded_images = models.TextField(blank=True, null=True) 
+    public_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
     class Meta:
         ordering = ['-create_time']

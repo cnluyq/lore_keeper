@@ -85,6 +85,7 @@ def problem_list(request):
             'create_time': p.create_time.strftime('%Y-%m-%d %H:%M'),
             'update_time': p.update_time.strftime('%Y-%m-%d %H:%M'),
             'created_by': p.created_by.username if p.created_by else '-',
+            'public_token': str(p.public_token),
         }
         for p in problems
         if (p.created_by == request.user or request.user.is_superuser or p.is_public)
@@ -542,4 +543,20 @@ def resource_management(request):
         'large_files'   : large_files,
         'threshold_kb'  : threshold_kb,
         'home_size'     : home_size,
+    })
+
+def view_detail(request, token):
+    problem = get_object_or_404(Problem, public_token=token)
+    if not problem.is_public:
+        return HttpResponseForbidden("This item is not publicly accessible.")
+
+
+    # 一次性给前端：原始文本 + 编辑器类型
+    fields = {
+        f: {'text': getattr(problem, f), 'editor': getattr(problem, f'{f}_editor_type')}
+        for f in ['description','root_cause','solutions','others']
+    }
+    return render(request, 'problems/view_detail.html', {
+        'problem': problem,
+        'problem_fields_json': json.dumps(fields, cls=DjangoJSONEncoder),
     })
