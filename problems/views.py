@@ -1,5 +1,6 @@
 import json
 import os
+import uuid
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, authenticate
@@ -226,7 +227,8 @@ def export_json(request):
             'id', 'key_words', 'title', 'description', 'description_editor_type',
             'root_cause', 'root_cause_editor_type', 'solutions', 'solutions_editor_type',
             'others', 'others_editor_type', 'create_time', 'update_time',
-            'root_cause_file','solutions_file','others_file','uploaded_images'
+            'root_cause_file','solutions_file','others_file','uploaded_images',
+            'is_public', 'public_token'
         )
     )
 
@@ -269,6 +271,24 @@ def import_json(request):
                 item.setdefault('root_cause_editor_type', 'plain')
                 item.setdefault('solutions_editor_type', 'plain')
                 item.setdefault('others_editor_type', 'plain')
+
+                # 处理 public_token
+                public_token = item.get('public_token')
+                if public_token:
+                    # 检查该 public_token 是否已存在
+                    try:
+                        uuid.UUID(public_token)
+                        # 如果已存在相同 public_token 的记录，生成新的
+                        if Problem.objects.filter(public_token=public_token).exists():
+                            item['public_token'] = uuid.uuid4()
+                        else:
+                            item['public_token'] = public_token
+                    except (ValueError, AttributeError):
+                        # 如果 public_token 格式无效，生成新的
+                        item['public_token'] = uuid.uuid4()
+                else:
+                    # 如果没有 public_token，生成新的
+                    item['public_token'] = uuid.uuid4()
 
                 item.pop('id', None)  # 防止主键冲突
                 Problem.objects.create(created_by=request.user, **item)
