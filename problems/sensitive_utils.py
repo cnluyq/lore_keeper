@@ -36,11 +36,11 @@ class SensitiveDataProcessor:
                 return True
                 
         # 检查可能的敏感模式（如API密钥、密码等）
-        patterns = [
-            r'[a-zA-Z0-9]{20,}',  # 长字符串（可能为API密钥）
-            r'\b\d{3}-\d{2}-\d{4}\b',  # 类似SSN的模式
-            r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b',  # 电子邮件
-        ]
+        #patterns = [
+        #    r'[a-zA-Z0-9]{20,}',  # 长字符串（可能为API密钥）
+        #    r'\b\d{3}-\d{2}-\d{4}\b',  # 类似SSN的模式
+        #    r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b',  # 电子邮件
+        #]
         
         for pattern in patterns:
             if re.search(pattern, text):
