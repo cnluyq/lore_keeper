@@ -35,6 +35,7 @@ class SensitiveDataProcessor:
             if item['word'].lower() in text_lower:
                 return True
                 
+        patterns = []
         # 检查可能的敏感模式（如API密钥、密码等）
         #patterns = [
         #    r'[a-zA-Z0-9]{20,}',  # 长字符串（可能为API密钥）
