@@ -374,6 +374,7 @@ function renderTable(data) {
           <a class="btn btn-sm btn-warning bi bi-pencil" href="/edit/${p.id}/">Edit</a>
           <a class="btn btn-sm btn-danger bi bi-trash" href="/delete/${p.id}/" onclick="return confirm('Delete?')">Delete</a>
         ` : '' }
+	  <a class="btn btn-sm btn-primary bi bi-link-45deg copy-link" data-link="${window.location.origin}/view/${p.public_token}/" title="Copy link">Link</a>
       </td>
       {% endif %}
     `;
@@ -512,6 +513,39 @@ document.addEventListener('DOMContentLoaded', () => {
 document.getElementById('btnExport').onclick = exportWithPwd;
 document.getElementById('importFile').onchange = importWithPwd;
 
+
+function copyToClipboard(text) {
+  // 1. 优先用现代 API
+  if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).then(() => {
+      alert('link copied!');
+    });
+  }
+  // 2. 降级：execCommand
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    alert('link copied!');
+  } catch (err) {
+    alert('Copy failed, please copy manually: ' + text);
+  } finally {
+    document.body.removeChild(ta);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('click', e => {
+    if (e.target.matches('.copy-link')) {
+      e.preventDefault();
+      const link = e.target.dataset.link.trim();
+      copyToClipboard(link);   // 用兼容函数
+    }
+  });
+});
 </script>
 
 {% endblock %}

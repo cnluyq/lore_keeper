@@ -20,4 +20,5 @@ urlpatterns = [
     path('staff/resource-management/', views.resource_management, name='resource_management'),
     path('staff/isolated-images/delete/', views.isolated_images_delete, name='isolated_images_delete'),
     path('clear-uploaded-images/', views.clear_uploaded_images, name='clear_uploaded_images'),
+    path('view/<uuid:token>/', views.view_detail, name='view_detail'),
 ]
