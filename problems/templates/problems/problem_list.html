@@ -135,7 +135,29 @@
     height: 100%; /* 伪元素的高度与 blockquote 相同 */
     background-color: #ccc; /* 边框颜色调整为灰色 */
   }
-}
+
+  /* 自定义 Toast 提示样式 */
+  .custom-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1055;
+    min-width: 250px;
+    background-color: rgba(225, 235, 255, 0.9);
+    color: #333;
+    padding: 16px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    text-align: center;
+    border: 1px solid rgba(135, 206, 235, 0.5); /* 添加淡蓝色边框 */
+  }
+
+  .custom-toast.show {
+    opacity: 1;
+  }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/clipboard-polyfill/dist/clipboard-polyfill.min.js"></script>
@@ -151,6 +173,10 @@
 <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/line-numbers/prism-line-numbers.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet"/>
 
+<!-- 自定义 Toast 容器 -->
+<div id="customToast" class="custom-toast" style="display: none;">
+  <span id="toastMessage">Public link copied!</span>
+</div>
 
 <form method="get" class="mb-3">
   <div class="input-group">
@@ -513,12 +539,34 @@ document.addEventListener('DOMContentLoaded', () => {
 document.getElementById('btnExport').onclick = exportWithPwd;
 document.getElementById('importFile').onchange = importWithPwd;
 
+// 自定义 Toast 显示函数
+function showToast(message) {
+  const toast = document.getElementById('customToast');
+  const toastMessage = document.getElementById('toastMessage');
+
+  toastMessage.textContent = message;
+  toast.style.display = 'block';
+
+  // 触发重绘
+  toast.offsetHeight;
+
+  // 显示 Toast
+  toast.classList.add('show');
+
+  // 1200毫秒后自动隐藏
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      toast.style.display = 'none';
+    }, 300); // 等待淡出动画完成
+  }, 1200);
+}
 
 function copyToClipboard(text) {
   // 1. 优先用现代 API
   if (navigator.clipboard && window.isSecureContext) {
       return navigator.clipboard.writeText(text).then(() => {
-      alert('link copied!');
+      showToast('link copied!');
     });
   }
   // 2. 降级：execCommand
@@ -529,9 +577,9 @@ function copyToClipboard(text) {
   ta.select();
   try {
     document.execCommand('copy');
-    alert('link copied!');
+    showToast('link copied!');
   } catch (err) {
-    alert('Copy failed, please copy manually: ' + text);
+    showToast('Copy failed, please copy manually: ' + text);
   } finally {
     document.body.removeChild(ta);
   }
