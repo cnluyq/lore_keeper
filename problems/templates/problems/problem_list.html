@@ -579,7 +579,7 @@ function copyToClipboard(text) {
     document.execCommand('copy');
     showToast('link copied!');
   } catch (err) {
-    showToast('Copy failed, please copy manually: ' + text);
+    alert('Copy failed, please copy manually: ' + text);
   } finally {
     document.body.removeChild(ta);
   }
