@@ -568,7 +568,7 @@ def resource_management(request):
 
 def view_detail(request, token):
     problem = get_object_or_404(Problem, public_token=token)
-    if not problem.is_public:
+    if not problem.is_public and not (request.user.is_superuser or request.user == problem.created_by):
         return HttpResponseForbidden("This item is not publicly accessible.")
 
 
