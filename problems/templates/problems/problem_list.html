@@ -377,8 +377,13 @@ function renderTable(data) {
   data.forEach(p => {
     const tr = document.createElement('tr');
     tr.dataset.problem = JSON.stringify(p);
+
+    // console.log(`Problem ID: ${p.id}, is_public: ${p.is_public}, type: ${typeof p.is_public}`);
+    // 根据 is_public 设置 No. 列的颜色
+    const noColorClass = p.is_public ? '' : 'text-warning';
+
     tr.innerHTML = `
-      <td>${p.id}</td>
+      <td class="${noColorClass}">${p.id}</td>
       <td>${p.key_words}</td>
       <td>${p.title}</td>
       <td>${p.description.slice(0, 30)}${p.description.length > 30 ? '...' : ''}</td>

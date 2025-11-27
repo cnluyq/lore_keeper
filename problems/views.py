@@ -87,6 +87,7 @@ def problem_list(request):
             'update_time': p.update_time.strftime('%Y-%m-%d %H:%M'),
             'created_by': p.created_by.username if p.created_by else '-',
             'public_token': str(p.public_token),
+            'is_public': p.is_public,
         }
         for p in problems
         if (p.created_by == request.user or request.user.is_superuser or p.is_public)
