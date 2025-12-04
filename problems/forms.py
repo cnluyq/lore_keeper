@@ -1,7 +1,9 @@
 from django import forms
 from .models import Problem, SensitiveWord
 from django.core.exceptions import ValidationError
+import re
 
+html_regex = re.compile(r'</?[a-zA-Z][a-zA-Z0-9-]*\b[^>]*>', re.IGNORECASE)
 class ProblemForm(forms.ModelForm):
     class Meta:
         model = Problem
@@ -26,6 +28,7 @@ class ProblemForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+
         # 检查所有文件字段的大小
         file_fields = ['root_cause_file', 'solutions_file', 'others_file']
         max_size = 2 * 1024 * 1024  # 2MB
@@ -37,8 +40,20 @@ class ProblemForm(forms.ModelForm):
                     raise ValidationError(
                         f"{field_name.replace('_', ' ').title()}: File size must be no more than 2MB."
                     )
-        return cleaned_data
 
+        # 检查文本字段是否包含HTML标签
+        text_fields = ['description', 'root_cause', 'solutions', 'others', 'key_words', 'title']
+
+        for field_name in text_fields:
+            text = cleaned_data.get(field_name, '')
+            if text and html_regex.search(text):
+                # 检测HTML标签（包括自闭合标签）
+                raise ValidationError(
+                    f"Field '{field_name.replace('_', ' ').title()}' contains HTML tags. HTML tags are not allowed for security reasons. "
+                    f"Please use Markdown formatting instead."
+                )
+
+        return cleaned_data
 
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm

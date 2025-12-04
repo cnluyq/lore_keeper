@@ -418,12 +418,37 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     if (form) {
         form.addEventListener('submit', function(e) {
+            if (!validateNoHTMLTags()) {
+                e.preventDefault();
+                return;
+            }
             if (!checkSensitiveContent()) {
                 e.preventDefault();
             }
         });
     }
 });
+
+// 检测是否包含 HTML 标签
+function containsHTMLTags(str) {
+  const htmlRegex = /<\/?[a-zA-Z][a-zA-Z0-9-]*\b[^>]*>/i;
+  return htmlRegex.test(str);
+}
+
+// 在提交前检测所有文本字段
+function validateNoHTMLTags() {
+  const textFields = ['description', 'root_cause', 'solutions', 'others', 'key_words', 'title'];
+  for (let field of textFields) {
+    const input = document.querySelector(`[name="${field}"]`);
+    if (input && containsHTMLTags(input.value)) {
+      alert(`❌ Field "${field.replace(/_/g, ' ')}" contains HTML tags, which are not allowed.\n\nPlease remove all HTML tags before submitting.`);
+      input.focus();
+      return false;
+    }
+  }
+  return true;
+}
+
 </script>
 <!-- 添加隐藏字段传递敏感词数据 -->
 {% if user.is_superuser %}
