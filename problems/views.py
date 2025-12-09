@@ -118,36 +118,52 @@ def login_view(request):
 # ---------- 需登录 ----------
 @login_required
 def problem_add(request):
-    sensitive_words = list(SensitiveDataProcessor.get_active_sensitive_words())
-    sensitive_words_json = json.dumps(sensitive_words, ensure_ascii=False)
-
     if request.method == 'POST':
         form = ProblemForm(request.POST, request.FILES)
-        if form.is_valid():
-            processed_data = SensitiveDataProcessor.process_form_data(request.POST)
-            form = ProblemForm(processed_data, request.FILES)
-            if form.is_valid():
-                obj = form.save(commit=False)
-                obj.created_by = request.user
-                obj.save()
+        if not form.is_valid():
+            # 收集具体的表单错误信息
+            #errors = []
+            #for field, field_errors in form.errors.items():
+            #    field_label = form.fields[field].label if field in form.fields else field
+            #    for error in field_errors:
+            #        errors.append(f"{field_label}: {error}")
 
-                # 将会话中的图片路径转移到 uploaded_images 字段中
-                if 'uploaded_images' in request.session:
-                    obj.uploaded_images = json.dumps(request.session['uploaded_images'])
-                    obj.save()
-                    del request.session['uploaded_images']
+            #error_msg = "Form validation failed. Please check the following fields: " + "; ".join(errors)
+            #messages.error(request, error_msg)
+            # 将表单和错误信息返回给模板重新显示
+            return render(request, 'problems/problem_form.html', {
+                'form': form,  # 使用原始表单，它会包含字段错误
+                'action': 'Add'
+            })
 
-                return redirect('problem_list')
+        # 敏感词验证
+        processed_form, error_msg = SensitiveDataProcessor.validate_and_process_form(form, request)
+        # 保存对象
+        obj = processed_form.save(commit=False)
+        obj.created_by = request.user
+        obj.save()
+
+        # 将会话中的图片路径转移到 uploaded_images 字段中
+        if 'uploaded_images' in request.session:
+            obj.uploaded_images = json.dumps(request.session['uploaded_images'])
+            obj.save()
+            del request.session['uploaded_images']
+
+        # 如果有脱敏操作，可以给用户提示
+        if error_msg and "Content has been desensitized" in error_msg:
+            messages.info(request, error_msg)
+
+        # 添加成功消息
+        messages.success(request, 'Item added successfully!')
+
+        return redirect('problem_list')
     else:
         form = ProblemForm()
-    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Add', 'sensitive_words_json': sensitive_words_json})
+    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Add'})
 
 @login_required
 @owner_or_superuser_required
 def problem_edit(request, pk):
-    sensitive_words = list(SensitiveDataProcessor.get_active_sensitive_words())
-    sensitive_words_json = json.dumps(sensitive_words, ensure_ascii=False)
-
     problem = get_object_or_404(Problem, pk=pk)
     if not problem.is_public and not (request.user == problem.created_by or request.user.is_superuser):
         raise PermissionDenied
@@ -158,53 +174,76 @@ def problem_edit(request, pk):
             old_files[field] = getattr(problem, field)   # 这里一定是 FieldFile 或空
 
         form = ProblemForm(request.POST, request.FILES, instance=problem)
-        if form.is_valid():
-            processed_data = SensitiveDataProcessor.process_form_data(request.POST)
-            form = ProblemForm(processed_data, request.FILES, instance=problem)
-            if form.is_valid():
+        if not form.is_valid():
+            # 收集具体的表单错误信息
+            #errors = []
+            #for field, field_errors in form.errors.items():
+            #    field_label = form.fields[field].label if field in form.fields else field
+            #    for error in field_errors:
+            #        errors.append(f"{field_label}: {error}")
 
-                # 将会话中的图片路径转移到 uploaded_images 字段中
-                if 'uploaded_images' in request.session:
-                    if problem.uploaded_images:
-                        uploaded_images = json.loads(problem.uploaded_images)
-                    else:
-                        uploaded_images = []
-                    uploaded_images.extend(request.session['uploaded_images'])
-                    problem.uploaded_images = json.dumps(uploaded_images)
-                    del request.session['uploaded_images']
+            #error_msg = "Form validation failed. Please check the following fields: " + "; ".join(errors)
+            #messages.error(request, error_msg)
+            # 将表单和错误信息返回给模板重新显示
+            return render(request, 'problems/problem_form.html', {
+                'form': form,  # 使用原始表单，它会包含字段错误
+                'action': 'Edit'
+            })
 
-                # 处理信息中的附件 
-                file_fields = ['root_cause_file', 'solutions_file', 'others_file']
-                for field in file_fields:
-                    new_file = form.cleaned_data.get(field)  # 上传的新文件或 False/None(False 表示勾了 clear)
-                    old_file = old_files[field]
-                    print(f'[DEBUG] new_file:',new_file)
-                    print(f'[DEBUG] old_file:',old_file)
-                    if old_file and (not new_file or new_file != old_file):
-                        path = old_file.path
-                        print(f'[DEBUG] will delete {field}: {path}')
-                        try:
-                            if os.path.isfile(path):
-                                os.remove(path)
-                                print(f'[DEBUG] {path} is deleted')
-                            else:
-                                print(f'[DEBUG] {path} does not exist')
-                        except Exception as e:
-                            print(f'[DEBUG] failed to delete {path}: {e}')
-                        # 数据库置空
-                        old_file.delete(save=False)
+        # 敏感词验证
+        processed_form, error_msg = SensitiveDataProcessor.validate_and_process_form(form, request)
+        try:
+            # 处理信息中的附件
+            file_fields = ['root_cause_file', 'solutions_file', 'others_file']
+            for field in file_fields:
+                new_file = processed_form.cleaned_data.get(field)  # 上传的新文件或 False/None(False 表示勾了 clear)
+                old_file = old_files[field]
 
-                    if new_file is False:
-                        setattr(problem, field, None)  # 如果是 False，则置空
-                    else:
-                        setattr(problem, field, new_file)  # 否则赋上新值
+                if old_file and (not new_file or new_file != old_file):
+                    path = old_file.path
+                    try:
+                        if os.path.isfile(path):
+                            os.remove(path)
+                    except Exception as e:
+                        print(f'Failed to delete {path}: {e}')
+                    # 数据库置空
+                    old_file.delete(save=False)
 
+                if new_file is False:
+                    setattr(problem, field, None)  # 如果是 False，则置空
+                elif new_file:
+                    setattr(problem, field, new_file)  # 否则赋上新值
 
-                form.save()
-                return redirect('problem_list')
+            # 将会话中的图片路径转移到 uploaded_images 字段中
+            if 'uploaded_images' in request.session:
+                if problem.uploaded_images:
+                    uploaded_images = json.loads(problem.uploaded_images)
+                else:
+                    uploaded_images = []
+                uploaded_images.extend(request.session['uploaded_images'])
+                problem.uploaded_images = json.dumps(uploaded_images)
+                del request.session['uploaded_images']
+
+            processed_form.save()
+
+            # 如果有脱敏操作，可以给用户提示
+            if error_msg and "Content has been desensitized" in error_msg:
+                messages.info(request, error_msg)
+
+            messages.success(request, 'Item updated successfully!')
+
+            return redirect('problem_list')
+        except Exception as e:
+            # 处理过程中出现异常
+            print(f"Error during form processing: {e}")
+            messages.error(request, f'Error saving item: {str(e)}')
+            return render(request, 'problems/problem_form.html', {
+                'form': form,
+                'action': 'Edit'
+            })
     else:
         form = ProblemForm(instance=problem)
-    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Edit', 'sensitive_words_json': sensitive_words_json})
+    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Edit'})
 
 @login_required
 @owner_or_superuser_required
