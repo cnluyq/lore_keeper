@@ -338,28 +338,16 @@ const userIsSuperuser = {{ user.is_superuser|yesno:"true,false" }};
 const currentUsername = '{{ user.username|escapejs }}';
 const allProblems = {{ problems_json|safe }};
 
-// 把原始文本转义并保留空格、换行
+// 把原始文本转义
 function preserveText(text, editorType = 'plain') {
   if (!text) return '-';
-
+  const unescapedText = unescapeHtml(text);
   if (editorType === 'markdown') {
-    const html = renderMarkdown(text);
-    // 让 Prism 重新扫描高亮 + 行号
+    const html = renderMarkdown(unescapedText);
     setTimeout(() => Prism.highlightAll(), 0);
     return html;
-    // 使用Markdown渲染
-    //const hardBreak = text.replace(/\n/g, '\n\n');
-    //return marked.parse(hardBreak);
   } else {
-    // 普通文本，保留换行和空格
-    const escaped = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-    
-    return escaped.replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
+    return `<div style="white-space: pre-wrap; font-family: inherit;">${text}</div>`;
   }
 }
 
