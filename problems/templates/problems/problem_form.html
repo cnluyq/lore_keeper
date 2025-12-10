@@ -231,6 +231,10 @@ function initEditor(fieldName) {
   const toggleBtn = document.querySelector(`.editor-toggle[data-field="${fieldName}"]`);
   const editorTypeField = document.getElementById(`id_${fieldName}_editor_type`);
 
+  // ✅ 反转义textarea的内容，显示原始输入
+  if (textarea.value) {
+    textarea.value = unescapeHtml(textarea.value);
+  }
 
   if (editorStates[fieldName] === 'markdown') {
     // 初始化Markdown编辑器
@@ -395,41 +399,36 @@ document.addEventListener('DOMContentLoaded', function() {
 // 初始化各字段编辑器
   ['description', 'root_cause', 'solutions', 'others'].forEach(fieldName => {
     initEditor(fieldName);
-    
+
     // 绑定切换按钮事件
     document.querySelector(`.editor-toggle[data-field="${fieldName}"]`)
       .addEventListener('click', () => toggleEditor(fieldName));
   });
 
-    const form = document.querySelector('form');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            if (!validateNoHTMLTags()) {
-                e.preventDefault();
-                return;
-            }
-        });
-    }
+  // 反转义普通文本输入框（Key Words 和 Title）
+  const keyWordsInput = document.querySelector('[name="key_words"]');
+  const titleInput = document.querySelector('[name="title"]');
+
+  if (keyWordsInput && keyWordsInput.value) {
+    keyWordsInput.value = unescapeHtml(keyWordsInput.value);
+  }
+
+  if (titleInput && titleInput.value) {
+    titleInput.value = unescapeHtml(titleInput.value);
+  }
+
 });
 
-// 检测是否包含 HTML 标签
-function containsHTMLTags(str) {
-  const htmlRegex = /<\/?[a-zA-Z][a-zA-Z0-9-]*\b[^>]*>/i;
-  return htmlRegex.test(str);
-}
-
-// 在提交前检测所有文本字段
-function validateNoHTMLTags() {
-  const textFields = ['description', 'root_cause', 'solutions', 'others', 'key_words', 'title'];
-  for (let field of textFields) {
-    const input = document.querySelector(`[name="${field}"]`);
-    if (input && containsHTMLTags(input.value)) {
-      alert(`❌ Field "${field.replace(/_/g, ' ')}" contains HTML tags, which are not allowed.\n\nPlease remove all HTML tags before submitting.`);
-      input.focus();
-      return false;
-    }
-  }
-  return true;
+// HTML反转义函数
+function unescapeHtml(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'");
 }
 
 </script>
