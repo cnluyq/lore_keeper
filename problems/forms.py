@@ -2,6 +2,7 @@ from django import forms
 from .models import Problem, SensitiveWord
 from django.core.exceptions import ValidationError
 import re
+import html
 
 html_regex = re.compile(r'</?[a-zA-Z][a-zA-Z0-9-]*\b[^>]*>', re.IGNORECASE)
 class ProblemForm(forms.ModelForm):
@@ -41,17 +42,13 @@ class ProblemForm(forms.ModelForm):
                         f"{field_name.replace('_', ' ').title()}: File size must be no more than 2MB."
                     )
 
-        # 检查文本字段是否包含HTML标签
+        # 自动转义HTML字符
         text_fields = ['description', 'root_cause', 'solutions', 'others', 'key_words', 'title']
-
         for field_name in text_fields:
             text = cleaned_data.get(field_name, '')
-            if text and html_regex.search(text):
-                # 检测HTML标签（包括自闭合标签）
-                raise ValidationError(
-                    f"Field '{field_name.replace('_', ' ').title()}' contains HTML tags. HTML tags are not allowed for security reasons. "
-                    f"Please use Markdown formatting instead."
-                )
+            if text:
+                # 将 < > & " ' 转义为 HTML 实体，防止XSS和页面结构破坏
+                cleaned_data[field_name] = html.escape(text)
 
         return cleaned_data
 
