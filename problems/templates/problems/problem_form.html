@@ -47,6 +47,21 @@
     display: block;  /* 块级元素，确保图片独占一行 */
     margin: 0 auto;  /* 居中显示 */
   }
+
+  /* 警告框增强样式 */
+  .alert-warning {
+    border-left: 4px solid #ffc107;
+    background-color: #fff8e1;
+  }
+
+  .alert-warning code {
+    background-color: #fff3cd;
+    padding: 2px 4px;
+    border-radius: 3px;
+    color: #856404;
+    font-weight: bold;
+  }
+
 </style>
 
 <div class="container py-5">
@@ -70,6 +85,17 @@
           {% endfor %}
         </div>
       {% endif %}
+
+      <!-- ****** 在这里插入警告提示 ****** -->
+      <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+        <strong>⚠️ Markdown 编辑规范：</strong>
+        <ul class="mb-0 mt-2 small">
+          <li>所有代码必须用 <code>```</code> 包裹，例如： <code>```html\n&lt;html&gt;\n&lt;/html&gt;\n```</code></li>
+          <li>裸代码（不在代码块中）将无法正常显示</li>
+          <li>支持语法高亮：html, javascript, python, css, sql 等</li>
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
 
       <form method="post" enctype="multipart/form-data" class="row g-3 form-wrapper">
       {% csrf_token %}

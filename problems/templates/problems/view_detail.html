@@ -177,7 +177,7 @@
 }
 </style>
 
-<h2>{{ problem.title }}</h2>
+<h2>{{ problem.title|safe }}</h2>
 
 <div class="container mt-4">
 <div class="card shadow-sm">
@@ -185,14 +185,14 @@
 <table class="table table-borderless mb-0">
   <tr>
     <th class="text-nowrap">Key Words</th>
-    <td>{{ problem.key_words|default:"-" }}</td>
+    <td>{{ problem.key_words|safe }}</td>
   </tr>
 
   {# 1.  Description  #}
   <tr>
     <th>Description</th>
     <td>
-      <div id="desc-cell" class="break-all">{% if problem.description %}{{ problem.description }}{% else %}-{% endif %}</div>
+      <div id="desc-cell" class="break-all">{% if problem.description %}{{ problem.description|safe }}{% else %}-{% endif %}</div>
     </td>
   </tr>
 
@@ -200,7 +200,7 @@
   <tr>
     <th>Root Cause</th>
     <td>
-      <div id="rc-cell" class="break-all">{% if problem.root_cause %}{{ problem.root_cause }}{% else %}-{% endif %}</div>
+      <div id="rc-cell" class="break-all">{% if problem.root_cause %}{{ problem.root_cause|safe }}{% else %}-{% endif %}</div>
       {% if problem.root_cause_file %}
         <div class="mt-1 small">Attachment: <a href="{{ problem.root_cause_file.url }}" target="_blank">{{ problem.root_cause_file.name|basename }}</a></div>
       {% endif %}
@@ -211,7 +211,7 @@
   <tr>
     <th>Solutions</th>
     <td>
-      <div id="sol-cell" class="break-all">{% if problem.solutions %}{{ problem.solutions }}{% else %}-{% endif %}</div>
+      <div id="sol-cell" class="break-all">{% if problem.solutions %}{{ problem.solutions|safe }}{% else %}-{% endif %}</div>
       {% if problem.solutions_file %}
         <div class="mt-1 small">Attachment: <a href="{{ problem.solutions_file.url }}" target="_blank">{{ problem.solutions_file.name|basename }}</a></div>
       {% endif %}
@@ -222,7 +222,7 @@
   <tr>
     <th>Others</th>
     <td>
-      <div id="oth-cell" class="break-all">{% if problem.others %}{{ problem.others }}{% else %}-{% endif %}</div>
+      <div id="oth-cell" class="break-all">{% if problem.others %}{{ problem.others|safe }}{% else %}-{% endif %}</div>
       {% if problem.others_file %}
         <div class="mt-1 small">Attachment: <a href="{{ problem.others_file.url }}" target="_blank">{{ problem.others_file.name|basename }}</a></div>
       {% endif %}
@@ -240,10 +240,10 @@
 
 {# 仅用于 Markdown 渲染的隐藏容器 #}
 <div id="md-cache" style="display:none;">
-  <div data-field="description">{{ problem|field_json:'description' }}</div>
-  <div data-field="root_cause">{{ problem|field_json:'root_cause' }}</div>
-  <div data-field="solutions">{{ problem|field_json:'solutions' }}</div>
-  <div data-field="others">{{ problem|field_json:'others' }}</div>
+  <div data-field="description">{{ problem|field_json:'description'|safe }}</div>
+  <div data-field="root_cause">{{ problem|field_json:'root_cause'|safe }}</div>
+  <div data-field="solutions">{{ problem|field_json:'solutions'|safe }}</div>
+  <div data-field="others">{{ problem|field_json:'others'|safe }}</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
