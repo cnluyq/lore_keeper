@@ -238,14 +238,6 @@
 </div>
 </div>
 
-{# 仅用于 Markdown 渲染的隐藏容器 #}
-<div id="md-cache" style="display:none;">
-  <div data-field="description">{{ problem|field_json:'description'|safe }}</div>
-  <div data-field="root_cause">{{ problem|field_json:'root_cause'|safe }}</div>
-  <div data-field="solutions">{{ problem|field_json:'solutions'|safe }}</div>
-  <div data-field="others">{{ problem|field_json:'others'|safe }}</div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
@@ -253,45 +245,174 @@
 <script src="https://cdn.jsdelivr.net/npm/clipboard-polyfill/dist/clipboard-polyfill.min.js"></script>
 
 <script>
-/* ---------- 通用渲染 ---------- */
+// 从 problem_list.html 复制的 Markdown 渲染逻辑
 marked.setOptions({
-  gfm:true,breaks:true,
-  highlight:function(c,l){
-    return Prism.languages[l]?Prism.highlight(c,Prism.languages[l],l):Prism.highlight(c,Prism.languages.plaintext,'plaintext');
+  gfm: true,               // GitHub Flavored Markdown
+  breaks: true,            // 换行符直接换行
+  highlight: function (code, lang) {
+    if (lang && Prism.languages[lang]) {
+      return Prism.highlight(code, Prism.languages[lang], lang);
+    }
+    return Prism.highlight(code, Prism.languages.plaintext, 'plaintext');
   }
 });
 
-function renderMarkdown(src){
-  let html=marked.parse(src);
-  html=html.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g,(m,c)=>`<pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code>${c}</code></pre>`); 
-  html=html.replace(/<code>(.*?)<\/code>/g,(m,c)=>`<code class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${c}</code>`); 
-  html=html.replace(/<table>/g,'<div class="table-responsive"><table class="table table-sm table-bordered"><thead class="table-light">');
-  html=html.replace(/<\/table>/g,'</table></div>');
-  setTimeout(()=>Prism.highlightAll(),0);
+function addCopyListeners() {
+    document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+    const codeElement = button.parentNode;
+    if (codeElement && codeElement.tagName === 'CODE') {
+      const code = codeElement.textContent.replace('Copy', '').trim(); 
+      try {
+          clipboard.writeText(code).then(() => {
+          button.textContent = 'Copied';
+          setTimeout(() => button.textContent = 'Copy', 1500);
+          }).catch(err => {
+              console.error('Failed to copy text: ', err);
+          });
+        } catch (err) {
+          console.error('Clipboard API not available', err);
+          alert('Your browser does not support the Clipboard API. Please copy the code manually.');
+        }
+    } else {
+      const codeElement = button.nextElementSibling;
+      if (codeElement) {
+        const code = button.nextElementSibling.textContent;
+        try {
+            clipboard.writeText(code).then(() => {
+            button.textContent = 'Copied';
+            setTimeout(() => button.textContent = 'Copy', 1500);
+            }).catch(err => {
+              console.error('Failed to copy text: ', err);
+            });
+        } catch (err) {
+          console.error('Clipboard API not available', err);
+          alert('Your browser does not support the Clipboard API. Please copy the code manually.');
+        }
+      } else {
+        console.error('No code element found next to the button');
+      }
+    }
+  });
+});
+}
+
+function renderMarkdown(src) {
+  let html = marked.parse(src);
+
+  // 代码块加行号和拷贝按钮
+  html = html.replace(
+    /<pre><code>([\s\S]*?)<\/code><\/pre>/g,
+    (match, code) => {
+      return `
+        <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code>${code}</code></pre>
+      `;
+    }
+  );
+
+  // 行内代码：浅灰背景 + 拷贝按钮
+  html = html.replace(/<code>(.*?)<\/code>/g, (match, code) => {
+    return `
+      <code class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
+    `;
+  });
+
+  // 表格包一层可滚动 div（解决超宽）
+  html = html.replace(/<table>/g, '<div class="table-responsive"><table class="table table-sm table-bordered"><thead class="table-light">');
+  html = html.replace(/<\/table>/g, '</table></div>');
+
+  // 弹出后让 Prism 高亮 + 按钮可用
+  setTimeout(() => {
+    Prism.highlightAll();
+    addCopyListeners();
+  }, 0);
+
   return html;
 }
-function addCopyListeners(){
-  document.querySelectorAll('td .copy-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const code=btn.parentElement.tagName==='CODE'?btn.parentElement.textContent.replace('Copy','').trim():btn.nextElementSibling.textContent;
-      clipboard.writeText(code).then(()=>{btn.textContent='Copied';setTimeout(()=>btn.textContent='Copy',1500);});
-    });
+
+// 从 problem_list.html 复制的 preserveText 函数
+function preserveText(text, editorType = 'plain') {
+  if (!text) return '-';
+  const unescapedText = unescapeHtml(text);
+  if (editorType === 'markdown') {
+    const html = renderMarkdown(unescapedText);
+    setTimeout(() => Prism.highlightAll(), 0);
+    return html;
+  } else {
+    // 纯文本模式：不反转义，直接显示HTML实体，用div包裹保持换行
+    return `<div style="white-space: pre-wrap; font-family: inherit;">${text}</div>`;
+  }
+}
+
+// 从 problem_list.html 复制的 unescapeHtml 函数
+function unescapeHtml(str) {
+  if (typeof str !== 'string') return str;
+  try {
+    const doc = new DOMParser().parseFromString(str, 'text/html');
+    return doc.documentElement.textContent;
+  } catch (e) {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = str;
+    return textarea.value;
+  }
+}
+
+// 从URL中提取文件名
+function extractFilename(url) {
+  if (!url) return '';
+  const parts = url.split('/');
+  return parts[parts.length - 1];
+}
+
+// 获取问题数据
+const problemData = {
+  id: {{ problem.id }},
+  key_words: '{{ problem.key_words|escapejs }}',
+  title: '{{ problem.title|escapejs }}',
+  description: '{{ problem.description|escapejs }}',
+  description_editor_type: '{{ problem.description_editor_type|default:"plain"|escapejs }}',
+  root_cause: '{{ problem.root_cause|escapejs }}',
+  root_cause_editor_type: '{{ problem.root_cause_editor_type|default:"plain"|escapejs }}',
+  root_cause_file: '{% if problem.root_cause_file %}{{ problem.root_cause_file.url|escapejs }}{% endif %}',
+  solutions: '{{ problem.solutions|escapejs }}',
+  solutions_editor_type: '{{ problem.solutions_editor_type|default:"plain"|escapejs }}',
+  solutions_file: '{% if problem.solutions_file %}{{ problem.solutions_file.url|escapejs }}{% endif %}',
+  others: '{{ problem.others|escapejs }}',
+  others_editor_type: '{{ problem.others_editor_type|default:"plain"|escapejs }}',
+  others_file: '{% if problem.others_file %}{{ problem.others_file.url|escapejs }}{% endif %}',
+  create_time: '{{ problem.create_time|date:"Y-m-d H:i" }}',
+  update_time: '{{ problem.update_time|date:"Y-m-d H:i" }}',
+  is_public: {{ problem.is_public|yesno:"true,false" }},
+  public_token: '{{ problem.public_token }}'
+};
+
+// 渲染字段 - 使用与problem_list.html双击详情相同的逻辑
+function renderFields() {
+  const fields = ['description', 'root_cause', 'solutions', 'others'];
+
+  fields.forEach(field => {
+    const cellId = `${field === 'description' ? 'desc' : field === 'root_cause' ? 'rc' : field === 'solutions' ? 'sol' : 'oth'}-cell`;
+    const cell = document.getElementById(cellId);
+    if (!cell) return;
+
+    const text = problemData[field];
+    const editorType = problemData[`${field}_editor_type`] || 'plain';
+
+    // 使用与problem_list.html中相同的preserveText函数
+    const html = preserveText(text, editorType);
+    cell.innerHTML = html;
   });
 }
 
-/* ---------- 逐格渲染 ---------- */
-const editors={
-  description:'{{ problem.description_editor_type|default:"plain" }}',
-  root_cause :'{{ problem.root_cause_editor_type|default:"plain" }}',
-  solutions  :'{{ problem.solutions_editor_type|default:"plain" }}',
-  others     :'{{ problem.others_editor_type|default:"plain" }}'
-};
-['description','root_cause','solutions','others'].forEach(f=>{
-  const src=JSON.parse(document.querySelector(`#md-cache div[data-field="${f}"]`).textContent);
-  const cell=document.querySelector(`#${f==='description'?'desc-cell':f==='root_cause'?'rc-cell':f==='solutions'?'sol-cell':'oth-cell'}`);
-  if(!src.trim()){cell.innerHTML='-';return;}
-  cell.innerHTML= editors[f]==='markdown'?renderMarkdown(src):src.split('\n').join('<br>');
+// 页面加载完成后渲染
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM loaded, rendering fields...');
+  renderFields();
+
+  // 重新绑定复制按钮事件
+  setTimeout(() => {
+    addCopyListeners();
+  }, 100);
 });
-addCopyListeners();
 </script>
 {% endblock %}
