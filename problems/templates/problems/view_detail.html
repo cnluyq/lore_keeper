@@ -258,43 +258,43 @@ marked.setOptions({
 });
 
 function addCopyListeners() {
-    document.querySelectorAll('.copy-btn').forEach(button => {
-    button.addEventListener('click', () => {
-    const codeElement = button.parentNode;
-    if (codeElement && codeElement.tagName === 'CODE') {
-      const code = codeElement.textContent.replace('Copy', '').trim(); 
-      try {
-          clipboard.writeText(code).then(() => {
-          button.textContent = 'Copied';
-          setTimeout(() => button.textContent = 'Copy', 1500);
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      let codeElement;
+      if (this.parentElement.tagName === 'CODE') {
+        // 行内代码
+        codeElement = this.parentElement;
+      } else if (this.parentElement.tagName === 'PRE') {
+        // 代码块
+        codeElement = this.nextElementSibling;
+      }
+
+      if (codeElement) {
+        let codeText = codeElement.textContent;
+        if (codeText.includes('Copy')) {
+          codeText = codeText.replace('Copy', '').trim();
+        }
+
+        try {
+          clipboard.writeText(codeText).then(() => {
+            const originalText = this.textContent;
+            this.textContent = 'Copied!';
+            setTimeout(() => {
+              this.textContent = originalText;
+            }, 1500);
           }).catch(err => {
-              console.error('Failed to copy text: ', err);
+            console.error('Failed to copy text: ', err);
           });
         } catch (err) {
           console.error('Clipboard API not available', err);
           alert('Your browser does not support the Clipboard API. Please copy the code manually.');
         }
-    } else {
-      const codeElement = button.nextElementSibling;
-      if (codeElement) {
-        const code = button.nextElementSibling.textContent;
-        try {
-            clipboard.writeText(code).then(() => {
-            button.textContent = 'Copied';
-            setTimeout(() => button.textContent = 'Copy', 1500);
-            }).catch(err => {
-              console.error('Failed to copy text: ', err);
-            });
-        } catch (err) {
-          console.error('Clipboard API not available', err);
-          alert('Your browser does not support the Clipboard API. Please copy the code manually.');
-        }
-      } else {
-        console.error('No code element found next to the button');
       }
-    }
+    });
   });
-});
 }
 
 function renderMarkdown(src) {
@@ -302,19 +302,31 @@ function renderMarkdown(src) {
 
   // 代码块加行号和拷贝按钮
   html = html.replace(
-    /<pre><code>([\s\S]*?)<\/code><\/pre>/g,
-    (match, code) => {
-      return `
-        <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code>${code}</code></pre>
-      `;
+    /<pre><code(\s+class="[^"]*")?>([\s\S]*?)<\/code><\/pre>/g,
+    (match, className, code) => {
+      if (className) {
+        return `
+          <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code${className}>${code}</code></pre>
+        `;
+      } else {
+        return `
+          <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code>${code}</code></pre>
+        `;
+      }
     }
   );
 
   // 行内代码：浅灰背景 + 拷贝按钮
-  html = html.replace(/<code>(.*?)<\/code>/g, (match, code) => {
-    return `
-      <code class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
-    `;
+  html = html.replace(/<code(\s+class="[^"]*")?>(.*?)<\/code>/g, (match, className, code) => {
+    if (className) {
+      return `
+        <code${className} class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
+      `;
+    } else {
+      return `
+        <code class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
+      `;
+    }
   });
 
   // 表格包一层可滚动 div（解决超宽）
@@ -355,13 +367,6 @@ function unescapeHtml(str) {
     textarea.innerHTML = str;
     return textarea.value;
   }
-}
-
-// 从URL中提取文件名
-function extractFilename(url) {
-  if (!url) return '';
-  const parts = url.split('/');
-  return parts[parts.length - 1];
 }
 
 // 获取问题数据
