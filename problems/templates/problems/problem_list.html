@@ -302,21 +302,33 @@ function addCopyListeners() {
 function renderMarkdown(src) {
   let html = marked.parse(src);
 
-  // 代码块加行号和拷贝按钮
+  // 代码块加行号和拷贝按钮 - 匹配可能带有class属性的code标签
   html = html.replace(
-    /<pre><code>([\s\S]*?)<\/code><\/pre>/g,
-    (match, code) => {
-      return `
-        <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code>${code}</code></pre>
-      `;
+    /<pre><code(\s+class="[^"]*")?>([\s\S]*?)<\/code><\/pre>/g,
+    (match, className, code) => {
+      if (className) {
+        return `
+          <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code${className}>${code}</code></pre>
+        `;
+      } else {
+        return `
+          <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code>${code}</code></pre>
+        `;
+      }
     }
   );
 
-  // 行内代码：浅灰背景 + 拷贝按钮
-  html = html.replace(/<code>(.*?)<\/code>/g, (match, code) => {
-    return `
-      <code class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
-    `;
+  // 行内代码：浅灰背景 + 拷贝按钮 - 匹配可能带有class属性的code标签
+  html = html.replace(/<code(\s+class="[^"]*")?>(.*?)<\/code>/g, (match, className, code) => {
+    if (className) {
+      return `
+        <code${className} class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
+      `;
+    } else {
+      return `
+        <code class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
+      `;
+    }
   });
 
   // 表格包一层可滚动 div（解决超宽）
