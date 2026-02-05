@@ -8,7 +8,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.http import JsonResponse, HttpResponse
 from .models import Problem
 from .forms import ProblemForm
-from django.db.models import Q 
+from django.db.models import Q
 from django.core.serializers.json import DjangoJSONEncoder
 from .forms import RegisterForm
 from django.conf import settings
@@ -43,6 +43,35 @@ from .sensitive_utils import SensitiveDataProcessor
 from hashlib import pbkdf2_hmac
 import base64, gzip
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
+
+# Multi-file constants
+FILE_DELIMITER = '|||'
+MAX_FILE_SIZE = 2 * 1024 * 1024  # 2MB
+
+
+def parse_files(file_field_value):
+    """Parse 'file1.pdf|||file2.doc' -> ['file1.pdf', 'file2.doc']"""
+    if not file_field_value:
+        return []
+    return file_field_value.split(FILE_DELIMITER)
+
+
+def build_filename_string(filenames):
+    """Build ['file1.pdf', 'file2.doc'] -> 'file1.pdf|||file2.doc'"""
+    return FILE_DELIMITER.join(filenames)
+
+
+def delete_file_from_disk(problem, field_base, filename):
+    """Delete a specific file from disk for a problem. Directory: uploads/<id>/<field_base>/"""
+    file_path = os.path.join(settings.MEDIA_ROOT, str(problem.id), field_base, filename)
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            return True
+        except Exception as e:
+            print(f'Failed to delete {file_path}: {e}')
+            return False
+    return False
 def pwd_to_chacha_key(password: str, salt: bytes = b'lore_keeper_sb') -> bytes:
     """PBKDF2 -> 32 B -> ChaCha20Poly1305 原生密钥"""
     key = pbkdf2_hmac('sha256', password.encode(), salt, 100_000, dklen=32)
@@ -76,13 +105,13 @@ def problem_list(request):
             'description_editor_type': p.description_editor_type,
             'root_cause': p.root_cause,
             'root_cause_editor_type': p.root_cause_editor_type,
-            'root_cause_file': p.root_cause_file.url if p.root_cause_file else None,
+            'root_cause_file': p.root_cause_file.name if p.root_cause_file and p.root_cause_file.name else None,
             'solutions': p.solutions,
             'solutions_editor_type': p.solutions_editor_type,
-            'solutions_file': p.solutions_file.url if p.solutions_file else None,
+            'solutions_file': p.solutions_file.name if p.solutions_file and p.solutions_file.name else None,
             'others': p.others,
             'others_editor_type': p.others_editor_type,
-            'others_file': p.others_file.url if p.others_file else None,
+            'others_file': p.others_file.name if p.others_file and p.others_file.name else None,
             'create_time': p.create_time.strftime('%Y-%m-%d %H:%M'),
             'update_time': p.update_time.strftime('%Y-%m-%d %H:%M'),
             'created_by': p.created_by.username if p.created_by else '-',
@@ -121,18 +150,8 @@ def problem_add(request):
     if request.method == 'POST':
         form = ProblemForm(request.POST, request.FILES)
         if not form.is_valid():
-            # 收集具体的表单错误信息
-            #errors = []
-            #for field, field_errors in form.errors.items():
-            #    field_label = form.fields[field].label if field in form.fields else field
-            #    for error in field_errors:
-            #        errors.append(f"{field_label}: {error}")
-
-            #error_msg = "Form validation failed. Please check the following fields: " + "; ".join(errors)
-            #messages.error(request, error_msg)
-            # 将表单和错误信息返回给模板重新显示
             return render(request, 'problems/problem_form.html', {
-                'form': form,  # 使用原始表单，它会包含字段错误
+                'form': form,
                 'action': 'Add'
             })
 
@@ -141,12 +160,126 @@ def problem_add(request):
         # 保存对象
         obj = processed_form.save(commit=False)
         obj.created_by = request.user
+
+        # Store uploaded files info before saving (save won't be able to use FileField directly)
+        file_info = {}
+
+        # Use a unique temp directory for this request
+        import time
+        temp_id = str(int(time.time() * 1000))
+
+        # Handle multiple file uploads for each field BEFORE saving obj
+        for field_base in ['root_cause', 'solutions', 'others']:
+            field_name = f'{field_base}_files'  # from request.FILES
+            if field_name in request.FILES:
+                files = request.FILES.getlist(field_name)
+                filenames = []
+                upload_dir = os.path.join(settings.MEDIA_ROOT, f'{field_base}/temp_{temp_id}/')
+                os.makedirs(upload_dir, exist_ok=True)
+
+                for f in files:
+                    # Validate file size (2MB)
+                    if f.size > MAX_FILE_SIZE:
+                        messages.warning(request, f'File {f.name} exceeds 2MB limit and was skipped.')
+                        continue
+
+                    # Clean filename
+                    clean_name = f.name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+
+                    # Save file manually to temp directory first
+                    fs = FileSystemStorage(location=upload_dir)
+                    filename = fs.save(clean_name, f)
+                    filenames.append(filename)
+
+                file_info[field_base] = filenames
+
+        # Now save the object to get an ID
         obj.save()
 
-        # 将会话中的图片路径转移到 uploaded_images 字段中
+        # Move files from temp to final directory and update database
+        from django.db import connection
+        cursor = connection.cursor()
+
+        for field_base, filenames in file_info.items():
+            if filenames:
+                # Create final directory: uploads/<obj.id>/<field_base>/
+                final_dir = os.path.join(settings.MEDIA_ROOT, str(obj.id), field_base)
+                os.makedirs(final_dir, exist_ok=True)
+
+                # Move files from temp directory
+                temp_dir = os.path.join(settings.MEDIA_ROOT, f'{field_base}/temp_{temp_id}/')
+                for filename in filenames:
+                    src = os.path.join(temp_dir, filename)
+                    dst = os.path.join(final_dir, filename)
+                    if os.path.exists(src):
+                        os.rename(src, dst)
+                    else:
+                        # Already moved or doesn't exist
+                        continue
+
+                # Update database directly to store the concatenated string
+                table_name = Problem._meta.db_table
+                file_field_column = f'{field_base}_file'
+                file_string = build_filename_string(filenames)
+
+                cursor.execute(
+                    f"UPDATE {table_name} SET {file_field_column} = %s WHERE id = %s",
+                    [file_string, obj.id]
+                )
+
+        # Clean up temp directories (both old and new patterns)
+        for field_base in ['root_cause', 'solutions', 'others']:
+            # Clean up the temp directory we used for this request
+            temp_dir = os.path.join(settings.MEDIA_ROOT, f'{field_base}/temp_{temp_id}/')
+            if os.path.isdir(temp_dir):
+                # Clean up remaining files
+                for filename in os.listdir(temp_dir):
+                    file_path = os.path.join(temp_dir, filename)
+                    if os.path.isfile(file_path):
+                        try:
+                            os.remove(file_path)
+                        except:
+                            pass
+                try:
+                    os.rmdir(temp_dir)
+                except:
+                    pass
+
+            # Clean up any leftover old temp directories
+            old_temp_dir = os.path.join(settings.MEDIA_ROOT, f'{field_base}/temp/')
+            if os.path.isdir(old_temp_dir):
+                for filename in os.listdir(old_temp_dir):
+                    file_path = os.path.join(old_temp_dir, filename)
+                    if os.path.isfile(file_path):
+                        try:
+                            os.remove(file_path)
+                        except:
+                            pass
+                try:
+                    os.rmdir(old_temp_dir)
+                except:
+                    pass
+
+            # Clean up empty field directories at old path (field_base/)
+            old_field_dir = os.path.join(settings.MEDIA_ROOT, field_base)
+            if os.path.isdir(old_field_dir) and not os.listdir(old_field_dir):
+                try:
+                    os.rmdir(old_field_dir)
+                except:
+                    pass
+
+        # Reload object from database to get updated file fields
+        obj.refresh_from_db()
+
+        # 将会话中的图片路径转移到 uploaded_images 字段中 (using direct SQL to avoid Django file validation)
         if 'uploaded_images' in request.session:
-            obj.uploaded_images = json.dumps(request.session['uploaded_images'])
-            obj.save()
+            from django.db import connection
+            cursor = connection.cursor()
+            table_name = Problem._meta.db_table
+            cursor.execute(
+                f"UPDATE {table_name} SET uploaded_images = %s WHERE id = %s",
+                [json.dumps(request.session['uploaded_images']), obj.id]
+            )
             del request.session['uploaded_images']
 
         # 如果有脱敏操作，可以给用户提示
@@ -169,52 +302,74 @@ def problem_edit(request, pk):
         raise PermissionDenied
 
     if request.method == 'POST':
-        old_files = {}
-        for field in ['root_cause_file', 'solutions_file', 'others_file']:
-            old_files[field] = getattr(problem, field)   # 这里一定是 FieldFile 或空
-
         form = ProblemForm(request.POST, request.FILES, instance=problem)
         if not form.is_valid():
-            # 收集具体的表单错误信息
-            #errors = []
-            #for field, field_errors in form.errors.items():
-            #    field_label = form.fields[field].label if field in form.fields else field
-            #    for error in field_errors:
-            #        errors.append(f"{field_label}: {error}")
-
-            #error_msg = "Form validation failed. Please check the following fields: " + "; ".join(errors)
-            #messages.error(request, error_msg)
-            # 将表单和错误信息返回给模板重新显示
             return render(request, 'problems/problem_form.html', {
-                'form': form,  # 使用原始表单，它会包含字段错误
+                'form': form,
                 'action': 'Edit'
             })
 
         # 敏感词验证
         processed_form, error_msg = SensitiveDataProcessor.validate_and_process_form(form, request)
+
         try:
-            # 处理信息中的附件
-            file_fields = ['root_cause_file', 'solutions_file', 'others_file']
-            for field in file_fields:
-                new_file = processed_form.cleaned_data.get(field)  # 上传的新文件或 False/None(False 表示勾了 clear)
-                old_file = old_files[field]
+            # Store file deletions and updates for ALL fields that need changes
+            files_to_remove = {}  # {field_base: [filenames to remove]}
+            uploaded_files = {}
 
-                if old_file and (not new_file or new_file != old_file):
-                    path = old_file.path
-                    try:
-                        if os.path.isfile(path):
-                            os.remove(path)
-                    except Exception as e:
-                        print(f'Failed to delete {path}: {e}')
-                    # 数据库置空
-                    old_file.delete(save=False)
+            # Handle file deletions from POST data
+            for field_base in ['root_cause', 'solutions', 'others']:
+                delete_list = request.POST.getlist(f'{field_base}_files_delete')
+                if delete_list:
+                    files_to_remove[field_base] = delete_list
+                    # Delete from disk
+                    for filename in delete_list:
+                        delete_file_from_disk(problem, field_base, filename)
 
-                if new_file is False:
-                    setattr(problem, field, None)  # 如果是 False，则置空
-                elif new_file:
-                    setattr(problem, field, new_file)  # 否则赋上新值
+            # Handle new file uploads
+            for field_base in ['root_cause', 'solutions', 'others']:
+                field_name = f'{field_base}_files'
+                if field_name in request.FILES:
+                    files = request.FILES.getlist(field_name)
+                    # Use correct directory structure: uploads/<id>/<field_base>/
+                    upload_dir = os.path.join(settings.MEDIA_ROOT, str(problem.id), field_base)
+                    os.makedirs(upload_dir, exist_ok=True)
 
-            # 将会话中的图片路径转移到 uploaded_images 字段中
+                    filenames = []
+                    for f in files:
+                        # Validate file size (2MB)
+                        if f.size > MAX_FILE_SIZE:
+                            messages.warning(request, f'File {f.name} exceeds 2MB limit and was skipped.')
+                            continue
+
+                        # Clean filename
+                        clean_name = f.name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+
+                        # Save file manually to correct directory
+                        fs = FileSystemStorage(location=upload_dir)
+                        filename = fs.save(clean_name, f)
+                        filenames.append(filename)
+
+                    if filenames:
+                        uploaded_files[field_base] = filenames
+
+            # Save other form fields WITHOUT touching file fields
+            problem.key_words = processed_form.cleaned_data.get('key_words', problem.key_words)
+            problem.title = processed_form.cleaned_data.get('title', problem.title)
+            problem.description = processed_form.cleaned_data.get('description', problem.description)
+            problem.description_editor_type = processed_form.cleaned_data.get('description_editor_type', problem.description_editor_type)
+            problem.root_cause = processed_form.cleaned_data.get('root_cause', problem.root_cause)
+            problem.root_cause_editor_type = processed_form.cleaned_data.get('root_cause_editor_type', problem.root_cause_editor_type)
+            problem.solutions = processed_form.cleaned_data.get('solutions', problem.solutions)
+            problem.solutions_editor_type = processed_form.cleaned_data.get('solutions_editor_type', problem.solutions_editor_type)
+            problem.others = processed_form.cleaned_data.get('others', problem.others)
+            problem.others_editor_type = processed_form.cleaned_data.get('others_editor_type', problem.others_editor_type)
+            problem.is_public = processed_form.cleaned_data.get('is_public', problem.is_public)
+
+            # Use update_fields to only update specific fields (excluding file fields)
+            update_fields = ['key_words', 'title', 'description', 'root_cause', 'solutions', 'others',
+                            'description_editor_type', 'root_cause_editor_type', 'solutions_editor_type',
+                            'others_editor_type', 'is_public']
             if 'uploaded_images' in request.session:
                 if problem.uploaded_images:
                     uploaded_images = json.loads(problem.uploaded_images)
@@ -223,8 +378,53 @@ def problem_edit(request, pk):
                 uploaded_images.extend(request.session['uploaded_images'])
                 problem.uploaded_images = json.dumps(uploaded_images)
                 del request.session['uploaded_images']
+                update_fields.append('uploaded_images')
 
-            processed_form.save()
+            problem.save(update_fields=update_fields)
+
+            # Now process file field updates ONLY for fields that changed
+            from django.db import connection
+
+            # Only update if there are files to remove or new uploads
+            fields_to_update = set(files_to_remove.keys()) | set(uploaded_files.keys())
+            if fields_to_update:
+                cursor = connection.cursor()
+                table_name = Problem._meta.db_table
+
+                for field_base in fields_to_update:
+                    file_field_column = f'{field_base}_file'
+
+                    # Get current value from database
+                    cursor.execute(
+                        f"SELECT {file_field_column} FROM {table_name} WHERE id = %s",
+                        [problem.id]
+                    )
+                    current_value = cursor.fetchone()[0]
+
+                    # Parse existing filenames
+                    existing_filenames = []
+                    if current_value:
+                        existing_filenames = parse_files(current_value)
+
+                    # Remove files marked for deletion
+                    if field_base in files_to_remove:
+                        for filename in files_to_remove[field_base]:
+                            if filename in existing_filenames:
+                                existing_filenames.remove(filename)
+
+                    # Add new upload filenames
+                    if field_base in uploaded_files:
+                        existing_filenames.extend(uploaded_files[field_base])
+
+                    # Update database with final file list
+                    final_value = build_filename_string(existing_filenames) if existing_filenames else None
+                    cursor.execute(
+                        f"UPDATE {table_name} SET {file_field_column} = %s WHERE id = %s",
+                        [final_value, problem.id]
+                    )
+
+            # Reload object from database to get updated file fields
+            problem.refresh_from_db()
 
             # 如果有脱敏操作，可以给用户提示
             if error_msg and "Content has been desensitized" in error_msg:
@@ -239,11 +439,12 @@ def problem_edit(request, pk):
             messages.error(request, f'Error saving item: {str(e)}')
             return render(request, 'problems/problem_form.html', {
                 'form': form,
-                'action': 'Edit'
+                'action': 'Edit',
+                'problem': problem
             })
     else:
         form = ProblemForm(instance=problem)
-    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Edit'})
+    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Edit', 'problem': problem})
 
 @login_required
 @owner_or_superuser_required
@@ -372,7 +573,6 @@ def user_delete(request, pk):
     if request.method == 'POST':
         # 获取要删除的问题 id
         selected_ids = request.POST.getlist('problem_ids')
-        print('[DEBUG]========== selected_ids ==========', selected_ids) 
         if selected_ids:
             Problem.objects.filter(id__in=selected_ids).delete()
             messages.success(request, f"Deleted {len(selected_ids)} problem(s).")

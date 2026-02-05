@@ -146,11 +146,29 @@
         {% if form.root_cause.errors %}<div class="text-danger small">{{ form.root_cause.errors|join:", " }}</div>{% endif %}
       </div>
       <div class="col-12">
-        <label class="form-label" for="{{ form.root_cause_file.id_for_label }}">{{ form.root_cause_file.label }}</label>
-        {{ form.root_cause_file }}
-        {% if form.root_cause_file.errors %}<div class="text-danger small">{{ form.root_cause_file.errors|join:", " }}</div>{% endif %}
-        {% if form.instance.root_cause_file %}
-          <p class="small text-muted mt-1">Current: <a href="{{ form.instance.root_cause_file.url }}" target="_blank">{{ form.instance.root_cause_file.name }}</a></p>
+        <label class="form-label">Root Cause Files (multiple, max 2MB each)</label>
+        <input type="file" name="root_cause_files" multiple class="form-control" accept="*/*">
+
+        {% load problem_extras %}
+        {% if problem %}
+          {% with root_cause_files=problem|get_field_files:'root_cause' %}
+            {% if root_cause_files %}
+              <div id="root_cause_files_list" class="mt-2">
+                <div class="small text-muted mb-1">Current files:</div>
+                {% for filename, url in root_cause_files %}
+                  <div class="d-flex justify-content-between align-items-center mb-1 small bg-light p-2 rounded" id="root_cause_file_item_{{ forloop.counter }}">
+                    <a href="{{ url }}" target="_blank">{{ filename }}</a>
+                    <div>
+                      <input type="checkbox" class="form-check-input me-2 delete-checkbox" data-field="root_cause" data-filename="{{ filename|escapejs }}" value="{{ filename|escapejs }}" style="display:none;" name="">
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="markForDelete(this)">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
         {% endif %}
       </div>
 
@@ -162,11 +180,28 @@
         {% if form.solutions.errors %}<div class="text-danger small">{{ form.solutions.errors|join:", " }}</div>{% endif %}
       </div>
       <div class="col-12">
-        <label class="form-label" for="{{ form.solutions_file.id_for_label }}">{{ form.solutions_file.label }}</label>
-        {{ form.solutions_file }}
-        {% if form.solutions_file.errors %}<div class="text-danger small">{{ form.solutions_file.errors|join:", " }}</div>{% endif %}
-        {% if form.instance.solutions_file %}
-          <p class="small text-muted mt-1">Current: <a href="{{ form.instance.solutions_file.url }}" target="_blank">{{ form.instance.solutions_file.name }}</a></p>
+        <label class="form-label">Solutions Files (multiple, max 2MB each)</label>
+        <input type="file" name="solutions_files" multiple class="form-control" accept="*/*">
+
+        {% if problem %}
+          {% with solutions_files=problem|get_field_files:'solutions' %}
+            {% if solutions_files %}
+              <div id="solutions_files_list" class="mt-2">
+                <div class="small text-muted mb-1">Current files:</div>
+                {% for filename, url in solutions_files %}
+                  <div class="d-flex justify-content-between align-items-center mb-1 small bg-light p-2 rounded" id="solutions_file_item_{{ forloop.counter }}">
+                    <a href="{{ url }}" target="_blank">{{ filename }}</a>
+                    <div>
+                      <input type="checkbox" class="form-check-input me-2 delete-checkbox" data-field="solutions" data-filename="{{ filename|escapejs }}" value="{{ filename|escapejs }}" style="display:none;" name="">
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="markForDelete(this)">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
         {% endif %}
       </div>
 
@@ -178,11 +213,28 @@
         {% if form.others.errors %}<div class="text-danger small">{{ form.others.errors|join:", " }}</div>{% endif %}
       </div>
       <div class="col-12">
-        <label class="form-label" for="{{ form.others_file.id_for_label }}">{{ form.others_file.label }}</label>
-        {{ form.others_file }}
-        {% if form.others_file.errors %}<div class="text-danger small">{{ form.others_file.errors|join:", " }}</div>{% endif %}
-        {% if form.instance.others_file %}
-          <p class="small text-muted mt-1">Current: <a href="{{ form.instance.others_file.url }}" target="_blank">{{ form.instance.others_file.name }}</a></p>
+        <label class="form-label">Others Files (multiple, max 2MB each)</label>
+        <input type="file" name="others_files" multiple class="form-control" accept="*/*">
+
+        {% if problem %}
+          {% with others_files=problem|get_field_files:'others' %}
+            {% if others_files %}
+              <div id="others_files_list" class="mt-2">
+                <div class="small text-muted mb-1">Current files:</div>
+                {% for filename, url in others_files %}
+                  <div class="d-flex justify-content-between align-items-center mb-1 small bg-light p-2 rounded" id="others_file_item_{{ forloop.counter }}">
+                    <a href="{{ url }}" target="_blank">{{ filename }}</a>
+                    <div>
+                      <input type="checkbox" class="form-check-input me-2 delete-checkbox" data-field="others" data-filename="{{ filename|escapejs }}" value="{{ filename|escapejs }}" style="display:none;" name="">
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="markForDelete(this)">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
         {% endif %}
       </div>
 
@@ -235,6 +287,36 @@
 
 
 <script>
+
+// Function to mark files for deletion
+function markForDelete(button) {
+  const itemDiv = button.closest('.d-flex');
+  const checkbox = itemDiv.querySelector('.delete-checkbox');
+
+  if (checkbox && itemDiv) {
+    if (!checkbox.checked) {
+      // Mark for deletion
+      checkbox.checked = true;
+      checkbox.name = checkbox.dataset.field + '_files_delete'; // Give it the correct name to be submitted
+      button.textContent = 'Undo';
+      button.classList.remove('btn-outline-danger');
+      button.classList.add('btn-outline-success');
+      itemDiv.style.backgroundColor = '#ffcdd2'; // Light red background
+      itemDiv.style.textDecoration = 'line-through';
+      itemDiv.style.opacity = '0.7';
+    } else {
+      // Unmark for deletion
+      checkbox.checked = false;
+      checkbox.name = ''; // Remove name to prevent submission
+      button.textContent = 'Delete';
+      button.classList.remove('btn-outline-success');
+      button.classList.add('btn-outline-danger');
+      itemDiv.style.backgroundColor = '';
+      itemDiv.style.textDecoration = '';
+      itemDiv.style.opacity = '1';
+    }
+  }
+}
 
 // 初始化编辑器状态
 const editorStates = {

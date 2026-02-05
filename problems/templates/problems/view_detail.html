@@ -201,9 +201,17 @@
     <th>Root Cause</th>
     <td>
       <div id="rc-cell" class="break-all">{% if problem.root_cause %}{{ problem.root_cause|safe }}{% else %}-{% endif %}</div>
-      {% if problem.root_cause_file %}
-        <div class="mt-1 small">Attachment: <a href="{{ problem.root_cause_file.url }}" target="_blank">{{ problem.root_cause_file.name|basename }}</a></div>
-      {% endif %}
+      {% load problem_extras %}
+      {% with root_cause_files=problem|get_field_files:'root_cause' %}
+        {% if root_cause_files %}
+          <div class="mt-1 small">
+            <strong>Attachments:</strong>
+            {% for filename, url in root_cause_files %}
+              <a href="{{ url }}" target="_blank" class="badge bg-info text-decoration-none me-1">{{ filename }}</a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
     </td>
   </tr>
 
@@ -212,9 +220,16 @@
     <th>Solutions</th>
     <td>
       <div id="sol-cell" class="break-all">{% if problem.solutions %}{{ problem.solutions|safe }}{% else %}-{% endif %}</div>
-      {% if problem.solutions_file %}
-        <div class="mt-1 small">Attachment: <a href="{{ problem.solutions_file.url }}" target="_blank">{{ problem.solutions_file.name|basename }}</a></div>
-      {% endif %}
+      {% with solutions_files=problem|get_field_files:'solutions' %}
+        {% if solutions_files %}
+          <div class="mt-1 small">
+            <strong>Attachments:</strong>
+            {% for filename, url in solutions_files %}
+              <a href="{{ url }}" target="_blank" class="badge bg-info text-decoration-none me-1">{{ filename }}</a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
     </td>
   </tr>
 
@@ -223,9 +238,16 @@
     <th>Others</th>
     <td>
       <div id="oth-cell" class="break-all">{% if problem.others %}{{ problem.others|safe }}{% else %}-{% endif %}</div>
-      {% if problem.others_file %}
-        <div class="mt-1 small">Attachment: <a href="{{ problem.others_file.url }}" target="_blank">{{ problem.others_file.name|basename }}</a></div>
-      {% endif %}
+      {% with others_files=problem|get_field_files:'others' %}
+        {% if others_files %}
+          <div class="mt-1 small">
+            <strong>Attachments:</strong>
+            {% for filename, url in others_files %}
+              <a href="{{ url }}" target="_blank" class="badge bg-info text-decoration-none me-1">{{ filename }}</a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
     </td>
   </tr>
 

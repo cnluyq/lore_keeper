@@ -363,12 +363,39 @@ function preserveText(text, editorType = 'plain') {
   }
 }
 
-// 从URL中提取文件名 
+// 从URL中提取文件名
 function extractFilename(url) {
   if (!url) return '';
   // 获取URL中最后一个斜杠后的部分
   const parts = url.split('/');
   return parts[parts.length - 1];
+}
+
+// Extract filenames from multi-file string
+function extractFilenames(fileField) {
+  if (!fileField) return [];
+  // Check if it's the new multi-file format (contains ||| delimiter)
+  if (typeof fileField === 'string' && fileField.includes('|||')) {
+    const filenames = fileField.split('|||');
+    // Filter out empty strings
+    return filenames.filter(f => f && f.trim() !== '');
+  }
+  // Old single file format
+  return [extractFilename(fileField)];
+}
+
+// Function to generate proper file URL: /uploads/<id>/<field>/<filename>
+function getFileUrl(problemId, field, filename) {
+  return `/uploads/${problemId}/${field}/${filename}`;
+}
+
+// Get file count
+function getFileCount(fileField) {
+  if (!fileField) return 0;
+  if (fileField.includes('|||')) {
+    return fileField.split('|||').length;
+  }
+  return 1;
 }
 
 function renderTable(data) {
@@ -388,13 +415,13 @@ function renderTable(data) {
       <td>${p.title}</td>
       <td>${p.description.slice(0, 30)}${p.description.length > 30 ? '...' : ''}</td>
       <td>${p.root_cause.slice(0, 20)}${p.root_cause.length > 20 ? '...' : ''}
-        ${p.root_cause_file ? `<a href="${p.root_cause_file}" target="_blank"><i class="bi bi-paperclip"></i></a>` : ''}
+        ${p.root_cause_file ? `<span class="badge bg-secondary ms-1">${getFileCount(p.root_cause_file)} file${getFileCount(p.root_cause_file) !== 1 ? 's' : ''}</span>` : ''}
       </td>
       <td>${p.solutions.slice(0, 20)}${p.solutions.length > 20 ? '...' : ''}
-        ${p.solutions_file ? `<a href="${p.solutions_file}" target="_blank"><i class="bi bi-paperclip"></i></a>` : ''}
+        ${p.solutions_file ? `<span class="badge bg-secondary ms-1">${getFileCount(p.solutions_file)} file${getFileCount(p.solutions_file) !== 1 ? 's' : ''}</span>` : ''}
       </td>
       <td>${p.others.slice(0, 20)}${p.others.length > 20 ? '...' : ''}
-        ${p.others_file ? `<a href="${p.others_file}" target="_blank"><i class="bi bi-paperclip"></i></a>` : ''}
+        ${p.others_file ? `<span class="badge bg-secondary ms-1">${getFileCount(p.others_file)} file${getFileCount(p.others_file) !== 1 ? 's' : ''}</span>` : ''}
       </td>
       <td>${p.create_time}</td>
       <td>${p.update_time}</td>
@@ -417,23 +444,51 @@ function renderTable(data) {
     row.addEventListener('dblclick', () => {
       const p = JSON.parse(row.dataset.problem);
       const mb = document.getElementById('modalBody');
-      const rootCauseFileLink = p.root_cause_file ?
-        `[ attachment: <a href="${p.root_cause_file}" target="_blank">${extractFilename(p.root_cause_file)}</a> ]` : '';
 
-      const solutionsFileLink = p.solutions_file ?
-        `[ attachment: <a href="${p.solutions_file}" target="_blank">${extractFilename(p.solutions_file)}</a> ]` : '';
+      // Generate file links for root_cause
+      const rootCauseFileLinks = p.root_cause_file ?
+        (() => {
+          const filenames = extractFilenames(p.root_cause_file);
+          if (filenames.length === 0) return '';
+          const links = filenames.map(f => {
+            const url = getFileUrl(p.id, 'root_cause', f);
+            return `<a href="${url}" target="_blank" class="badge bg-info text-decoration-none me-1">${f}</a>`;
+          });
+          return `<div class="mt-1"><strong>Attachments:</strong><br>${links.join('')}</div>`;
+        })() : '';
 
-      const othersFileLink = p.others_file ?
-        `[ attachment: <a href="${p.others_file}" target="_blank">${extractFilename(p.others_file)}</a> ]` : '';
+      // Generate file links for solutions
+      const solutionsFileLinks = p.solutions_file ?
+        (() => {
+          const filenames = extractFilenames(p.solutions_file);
+          if (filenames.length === 0) return '';
+          const links = filenames.map(f => {
+            const url = getFileUrl(p.id, 'solutions', f);
+            return `<a href="${url}" target="_blank" class="badge bg-info text-decoration-none me-1">${f}</a>`;
+          });
+          return `<div class="mt-1"><strong>Attachments:</strong><br>${links.join('')}</div>`;
+        })() : '';
+
+      // Generate file links for others
+      const othersFileLinks = p.others_file ?
+        (() => {
+          const filenames = extractFilenames(p.others_file);
+          if (filenames.length === 0) return '';
+          const links = filenames.map(f => {
+            const url = getFileUrl(p.id, 'others', f);
+            return `<a href="${url}" target="_blank" class="badge bg-info text-decoration-none me-1">${f}</a>`;
+          });
+          return `<div class="mt-1"><strong>Attachments:</strong><br>${links.join('')}</div>`;
+        })() : '';
 
       mb.innerHTML = `
         <p><strong>No.</strong> ${p.id}</p>
         <p><strong>Key Words:</strong> ${p.key_words}</p>
         <p><strong>Title:</strong> ${p.title}</p>
         <p><strong>Description:</strong><br>${preserveText(p.description, p.description_editor_type || 'plain')}</p>
-        <p><strong>Root Cause:</strong><br>${preserveText(p.root_cause, p.root_cause_editor_type || 'plain')}<br>${rootCauseFileLink}</p>
-        <p><strong>Solutions:</strong><br>${preserveText(p.solutions, p.solutions_editor_type || 'plain')}<br>${solutionsFileLink}</p>
-        <p><strong>Others:</strong><br>${preserveText(p.others, p.others_editor_type || 'plain')}<br>${othersFileLink}</p>
+        <p><strong>Root Cause:</strong><br>${preserveText(p.root_cause, p.root_cause_editor_type || 'plain')}<br>${rootCauseFileLinks}</p>
+        <p><strong>Solutions:</strong><br>${preserveText(p.solutions, p.solutions_editor_type || 'plain')}<br>${solutionsFileLinks}</p>
+        <p><strong>Others:</strong><br>${preserveText(p.others, p.others_editor_type || 'plain')}<br>${othersFileLinks}</p>
         <p><strong>Created:</strong> ${p.create_time}</p>
         <p><strong>Updated:</strong> ${p.update_time}</p>
       `;

@@ -5,21 +5,21 @@ new_run_steps:
 
 cd lore_keeper
 
-python -m venv venv
+python3 -m venv venv
 
 source venv/bin/activate   # Windows 用 venv\Scripts\activate
 
-pip install django==4.2
+pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple django
 
-python manage.py makemigrations
+python3 manage.py makemigrations
 
-python manage.py makemigrations problems
+python3 manage.py makemigrations problems
 
-python manage.py migrate
+python3 manage.py migrate
 
-python manage.py createsuperuser
+python3 manage.py createsuperuser
 
-python manage.py runserver [ip]:[port]
+python3 manage.py runserver [ip]:[port]
 
 #if run on pythonanywhere for static files in uploads, set following:
-#pythonanywhere->Web->Static files->Enter URL with "/uploads/" and Enter Path with "/home/Andrewwwwww/problem_manager/uploads" 
+#pythonanywhere->Web->Static files->Enter URL with "/uploads/" and Enter Path with "/home/user/problem_manager/uploads"
