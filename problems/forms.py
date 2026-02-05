@@ -10,9 +10,9 @@ class ProblemForm(forms.ModelForm):
         model = Problem
         fields = [
             'key_words', 'title', 'description', 'description_editor_type',
-            'root_cause', 'root_cause_editor_type', 'root_cause_file',
-            'solutions', 'solutions_editor_type', 'solutions_file',
-            'others', 'others_editor_type', 'others_file', 'is_public'
+            'root_cause', 'root_cause_editor_type',
+            'solutions', 'solutions_editor_type',
+            'others', 'others_editor_type', 'is_public'
         ]
         widgets = {
             'description_editor_type': forms.HiddenInput(),
@@ -23,24 +23,9 @@ class ProblemForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['root_cause_file'].label = 'Root cause file (no more than 2M)'
-        self.fields['solutions_file'].label  = 'Solutions file (no more than 2M)'
-        self.fields['others_file'].label     = 'Others file (no more than 2M)'
 
     def clean(self):
         cleaned_data = super().clean()
-
-        # 检查所有文件字段的大小
-        file_fields = ['root_cause_file', 'solutions_file', 'others_file']
-        max_size = 2 * 1024 * 1024  # 2MB
-
-        for field_name in file_fields:
-            file = cleaned_data.get(field_name)
-            if file and hasattr(file, 'size'):
-                if file.size > max_size:
-                    raise ValidationError(
-                        f"{field_name.replace('_', ' ').title()}: File size must be no more than 2MB."
-                    )
 
         # 自动转义HTML字符
         text_fields = ['description', 'root_cause', 'solutions', 'others', 'key_words', 'title']
