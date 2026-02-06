@@ -9,6 +9,8 @@ python3 -m venv venv
 
 source venv/bin/activate   # Windows 用 venv\Scripts\activate
 
+pip3 install -r requirements.txt
+
 python3 manage.py makemigrations
 
 python3 manage.py makemigrations problems
