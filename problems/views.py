@@ -772,24 +772,62 @@ def resource_management(request):
     threshold_kb = int(request.GET.get('kb', 512))
     large_files  = []
     root = Path(settings.MEDIA_ROOT)
+
+    def has_filename_in_file_field(file_field_value, filename):
+        """检查文件字段是否包含指定的文件名"""
+        if not file_field_value:
+            return False
+        # 文件字段存储格式: 'file1.pdf|||file2.pdf'
+        filenames = file_field_value.split(FILE_DELIMITER)
+        return filename in filenames
+
+    def has_filename_in_uploaded_images(uploaded_images_json, filename):
+        """检查 uploaded_images JSON 是否包含指定文件名"""
+        if not uploaded_images_json:
+            return False
+        try:
+            images = json.loads(uploaded_images_json)
+            if isinstance(images, list):
+                return filename in images
+        except (json.JSONDecodeError, TypeError):
+            pass
+        return False
+
     for p in root.rglob('*'):
         if p.is_file() and p.stat().st_size > threshold_kb * 1024:
             rel_path = str(p.relative_to(root))
             file_name = p.name
 
-            # 附件匹配（相对路径）
-            owners_att = Problem.objects.filter(
-                Q(root_cause_file=rel_path) |
-                Q(solutions_file=rel_path) |
-                Q(others_file=rel_path)
-            )
+            owners = []
 
-            # upload_images 匹配（仅文件名）
-            owners_up = Problem.objects.filter(
-                uploaded_images__icontains=file_name     # JSON 里包含文件名
-            )
+            # 解析路径结构
+            parts = rel_path.split('/')
+            if parts and parts[0].isdigit() and len(parts) >= 3:
+                # MEDIA_ROOT 下：<id>/<field>/<filename>
+                # 例如: 2/root_cause/ccr_config_example2.json
+                try:
+                    problem_id = int(parts[0])
+                    field_name = parts[1]  # 'root_cause', 'solutions', 'others'
 
-            owners = (owners_att | owners_up).distinct()
+                    # 精确查询指定 ID 的 Problem
+                    problem = Problem.objects.filter(id=problem_id).first()
+                    if problem:
+                        field_column = f'{field_name}_file'
+                        file_field_obj = getattr(problem, field_column)
+                        # 获取 FileField 的 name 属性（字符串）
+                        file_field_value = file_field_obj.name if file_field_obj else None
+
+                        # 检查该字段是否包含该文件名
+                        if has_filename_in_file_field(file_field_value, file_name):
+                            owners.append(problem)
+                except (ValueError, IndexError):
+                    pass
+
+            elif parts and parts[0] == 'upload_images' and len(parts) >= 2:
+                # upload_images/<filename> - 在所有 uploaded_images 中搜索
+                for problem in Problem.objects.all():
+                    if has_filename_in_uploaded_images(problem.uploaded_images, file_name):
+                        owners.append(problem)
 
             large_files.append({
                 'path': rel_path,
