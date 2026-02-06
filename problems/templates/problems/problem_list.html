@@ -514,6 +514,52 @@ renderTable(allProblems);
 function exportWithPwd() {
   const pwd = prompt("Please input a password( ≥8 letters) for encryting export data：");
   if (!pwd || pwd.length < 8) return alert("password is too short！");
+
+  // 显示导出中提示
+  const exportStatus = document.createElement('div');
+  exportStatus.id = 'export-status';
+  exportStatus.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 40px;
+    border-radius: 10px;
+    z-index: 9999;
+    text-align: center;
+    font-size: 18px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  `;
+
+  // 创建加载指示器（使用安全的DOM方法）
+  const spinner = document.createElement('div');
+  spinner.className = 'spinner-border text-light mb-3';
+  spinner.setAttribute('role', 'status');
+  const spinnerSpan = document.createElement('span');
+  spinnerSpan.className = 'visually-hidden';
+  spinnerSpan.textContent = 'Loading...';
+  spinner.appendChild(spinnerSpan);
+
+  // 创建标题
+  const title = document.createElement('div');
+  title.style.fontWeight = 'bold';
+  title.style.marginBottom = '10px';
+  title.textContent = 'Exporting Data';
+
+  // 创建副标题
+  const subtitle = document.createElement('div');
+  subtitle.style.color = '#aaa';
+  subtitle.style.fontSize = '14px';
+  subtitle.textContent = 'Please wait, this may take a few minutes...';
+
+  // 组装提示框
+  exportStatus.appendChild(spinner);
+  exportStatus.appendChild(title);
+  exportStatus.appendChild(subtitle);
+  document.body.appendChild(exportStatus);
+
   fetch("{% url 'export_json' %}", {
     method: "POST",
     headers: {
@@ -522,12 +568,34 @@ function exportWithPwd() {
     },
     body: JSON.stringify({password: pwd})
   })
-  .then(r => r.blob())
+  .then(r => {
+    if (!r.ok) {
+      throw new Error("HTTP " + r.status);
+    }
+    return r.blob();
+  })
   .then(blob => {
+    // 移除提示
+    const status = document.getElementById('export-status');
+    if (status) status.remove();
+
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "items.bin";
     a.click();
+
+    // 显示成功提示
+    alert("Export completed successfully!");
+    URL.revokeObjectURL(a.href);
+  })
+  .catch(err => {
+    // 移除提示
+    const status = document.getElementById('export-status');
+    if (status) status.remove();
+
+    // 显示错误提示
+    alert("Export failed: " + err.message);
+    console.error(err);
   });
 }
 
