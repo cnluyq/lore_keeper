@@ -41,7 +41,7 @@ from .forms import SensitiveWordForm
 from .sensitive_utils import SensitiveDataProcessor
 
 from hashlib import pbkdf2_hmac
-import base64, gzip
+import base64, gzip, tarfile, io, tempfile, shutil
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
 # Multi-file constants
@@ -473,17 +473,40 @@ def export_json(request):
         )
     )
 
-    raw  = json.dumps(data, cls=DjangoJSONEncoder, ensure_ascii=False, indent=2).encode()
-    zipped = gzip.compress(raw)
+    # 创建 tar.gz 打包：items.json + uploads/
+    export_buffer = io.BytesIO()
 
+    with tarfile.open(fileobj=export_buffer, mode='w:gz') as tar:
+        # 1. 添加 items.json
+        json_data = json.dumps(data, cls=DjangoJSONEncoder, ensure_ascii=False, indent=2).encode()
+        json_file = io.BytesIO(json_data)
+        tarinfo = tarfile.TarInfo(name='items.json')
+        tarinfo.size = len(json_data)
+        tar.addfile(tarinfo, json_file)
+
+        # 2. 添加 uploads 目录
+        uploads_path = Path(settings.MEDIA_ROOT)
+        if uploads_path.exists():
+            # 添加所有按 Problem ID 命名的目录
+            for item_dir in uploads_path.iterdir():
+                if item_dir.is_dir() and item_dir.name.isdigit():
+                    # 递归添加整个目录，保持结构
+                    tar.add(item_dir, arcname=f'uploads/{item_dir.name}')
+
+            # 添加 upload_images 目录
+            upload_images_dir = uploads_path / 'upload_images'
+            if upload_images_dir.exists():
+                tar.add(upload_images_dir, arcname='uploads/upload_images')
+
+    # 加密整个 tar.gz 数据
     cipher = ChaCha20Poly1305(key)
-    nonce  = os.urandom(12)
-    encrypted = cipher.encrypt(nonce, zipped, associated_data=None)
+    nonce = os.urandom(12)
+    encrypted = cipher.encrypt(nonce, export_buffer.getvalue(), associated_data=None)
 
     blob = nonce + encrypted
 
     response = HttpResponse(blob, content_type='application/octet-stream')
-    response['Content-Disposition'] = 'attachment; filename="items.bin"'
+    response['Content-Disposition'] = 'attachment; filename="items_with_uploads.bin"'
     return response
 
 @login_required
@@ -504,41 +527,112 @@ def import_json(request):
             nonce, ct = blob[:12], blob[12:]
 
             cipher = ChaCha20Poly1305(key)
-            zipped = cipher.decrypt(nonce, ct, associated_data=None)
-            data = json.loads(gzip.decompress(zipped).decode())
+            decrypted = cipher.decrypt(nonce, ct, associated_data=None)
 
-            for item in data:
-                item.setdefault('description_editor_type', 'plain')
-                item.setdefault('root_cause_editor_type', 'plain')
-                item.setdefault('solutions_editor_type', 'plain')
-                item.setdefault('others_editor_type', 'plain')
+            # 解压 tar.gz 到临时目录
+            import_buffer = io.BytesIO(decrypted)
+            tmp_dir = tempfile.mkdtemp()
 
-                # 处理 public_token
-                public_token = item.get('public_token')
-                if public_token:
-                    # 检查该 public_token 是否已存在
-                    try:
-                        uuid.UUID(public_token)
-                        # 如果已存在相同 public_token 的记录，生成新的
-                        if Problem.objects.filter(public_token=public_token).exists():
+            try:
+                with tarfile.open(fileobj=import_buffer, mode='r:gz') as tar:
+                    tar.extractall(tmp_dir)
+
+                # 读取 items.json
+                with open(os.path.join(tmp_dir, 'items.json'), 'r') as f:
+                    data = json.loads(f.read())
+
+                # ID 映射：original_id -> new_id
+                id_mapping = {}
+
+                for item in data:
+                    original_id = item.get('id')
+
+                    # 设置默认值
+                    item.setdefault('description_editor_type', 'plain')
+                    item.setdefault('root_cause_editor_type', 'plain')
+                    item.setdefault('solutions_editor_type', 'plain')
+                    item.setdefault('others_editor_type', 'plain')
+
+                    # 处理 public_token
+                    public_token = item.get('public_token')
+                    if public_token:
+                        try:
+                            uuid.UUID(public_token)
+                            if Problem.objects.filter(public_token=public_token).exists():
+                                item['public_token'] = uuid.uuid4()
+                        except (ValueError, AttributeError):
                             item['public_token'] = uuid.uuid4()
-                        else:
-                            item['public_token'] = public_token
-                    except (ValueError, AttributeError):
-                        # 如果 public_token 格式无效，生成新的
+                    else:
                         item['public_token'] = uuid.uuid4()
-                else:
-                    # 如果没有 public_token，生成新的
-                    item['public_token'] = uuid.uuid4()
 
-                item.pop('id', None)  # 防止主键冲突
-                Problem.objects.create(created_by=request.user, **item)
+                    # 移除 id，让 Django 生成新的
+                    item.pop('id', None)
 
-            #messages.success(request, f'import {len(data)} items successfully！')
-            return JsonResponse({'message': f'import {len(data)} items successfully', 'error': None})
+                    # 创建新 Problem
+                    new_problem = Problem.objects.create(created_by=request.user, **item)
+
+                    # 记录 ID 映射
+                    id_mapping[original_id] = new_problem.id
+
+                # 处理 uploads 目录
+                import_dir = os.path.join(tmp_dir, 'uploads')
+                if os.path.exists(import_dir):
+                    uploads_root = Path(settings.MEDIA_ROOT)
+                    uploads_root.mkdir(parents=True, exist_ok=True)
+
+                    # 遍历 uploads 中的目录（按原始 ID 命名）
+                    for original_id_dir_name in sorted(os.listdir(import_dir)):
+                        # 跳过 upload_images（单独处理）
+                        if original_id_dir_name == 'upload_images':
+                            continue
+
+                        if original_id_dir_name.isdigit():
+                            original_id = int(original_id_dir_name)
+                            new_id = id_mapping.get(original_id)
+
+                            if new_id:
+                                # 创建新目录
+                                new_dir = uploads_root / str(new_id)
+                                new_dir.mkdir(parents=True, exist_ok=True)
+
+                                # 复制旧目录的所有内容到新目录
+                                src_dir = os.path.join(import_dir, str(original_id))
+
+                                for item_name in os.listdir(src_dir):
+                                    src_item = os.path.join(src_dir, item_name)
+                                    if os.path.isdir(src_item):
+                                        # 复制子目录（root_cause, solutions, others）
+                                        shutil.copytree(src_item, new_dir / item_name,
+                                                      dirs_exist_ok=True)
+
+                    # 处理 upload_images 目录
+                    upload_images_src = os.path.join(import_dir, 'upload_images')
+                    if os.path.exists(upload_images_src):
+                        upload_images_dst = uploads_root / 'upload_images'
+                        upload_images_dst.mkdir(parents=True, exist_ok=True)
+
+                        for image_file in os.listdir(upload_images_src):
+                            src_file = os.path.join(upload_images_src, image_file)
+                            if os.path.isfile(src_file):
+                                shutil.copy2(src_file, upload_images_dst / image_file)
+
+                return JsonResponse({
+                    'message': f'import {len(data)} items successfully',
+                    'error': None,
+                    'id_mapping_count': len(id_mapping)
+                })
+
+            finally:
+                # 清理临时目录
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+
         except Exception as e:
-            detail = f'{type(e).__name__}' 
-            return JsonResponse({'status': 'error', 'error': f'failed to import：{detail}: please check inputted password firstly!'}, status=400)
+            detail = f'{type(e).__name__}'
+            return JsonResponse({
+                'status': 'error',
+                'error': f'failed to import：{detail}: please check inputted password firstly!'
+            }, status=400)
+
     # GET 请求禁止访问
     return redirect('problem_list')
 
