@@ -10,6 +10,7 @@ from .models import Problem
 from .forms import ProblemForm
 from django.db.models import Q
 from django.core.serializers.json import DjangoJSONEncoder
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from .forms import RegisterForm
 from django.conf import settings
 from django.http import HttpResponseForbidden
@@ -94,8 +95,45 @@ def superuser_required(view_func):
 
 # ---------- 游客可见 ----------
 def problem_list(request):
-    # 一次性返回所有问题数据
-    problems = Problem.objects.all().order_by('-create_time')
+    # Get search query parameter
+    search_query = request.GET.get('q', '')
+
+    # Start with base query filtered by visibility
+    # Handle both authenticated and anonymous users
+    if request.user.is_authenticated:
+        problems = Problem.objects.filter(
+            Q(created_by=request.user) | Q(is_public=True)
+        ).order_by('-create_time')
+    else:
+        # Anonymous users only see public problems
+        problems = Problem.objects.filter(
+            Q(created_by__isnull=True, is_public=True) | Q(is_public=True)
+        ).order_by('-create_time')
+
+    # Apply search filter if query exists (search across ALL fields)
+    if search_query:
+        problems = problems.filter(
+            Q(key_words__icontains=search_query) |
+            Q(title__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(root_cause__icontains=search_query) |
+            Q(solutions__icontains=search_query) |
+            Q(others__icontains=search_query) |
+            Q(created_by__username__icontains=search_query)
+        )
+
+    # Paginate results (10 items per page)
+    paginator = Paginator(problems, 10)
+    page_number = request.GET.get('page', 1)
+
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    # Serialize current page data only
     data = [
         {
             'id': p.id,
@@ -118,11 +156,13 @@ def problem_list(request):
             'public_token': str(p.public_token),
             'is_public': p.is_public,
         }
-        for p in problems
-        if (p.created_by == request.user or request.user.is_superuser or p.is_public)
+        for p in page_obj
     ]
+
     context = {
         'problems_json': json.dumps(data, ensure_ascii=False),
+        'page_obj': page_obj,
+        'search_query': search_query,
         'user': request.user,
     }
     return render(request, 'problems/problem_list.html', context)
