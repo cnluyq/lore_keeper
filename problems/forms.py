@@ -1,5 +1,5 @@
 from django import forms
-from .models import Problem, SensitiveWord
+from .models import Problem, SensitiveWord, SiteConfig
 from django.core.exceptions import ValidationError
 import re
 import html
@@ -71,3 +71,26 @@ class SensitiveWordForm(forms.ModelForm):
             'replacement': 'replacement word',
             'is_active': 'active',
         }
+
+class SiteConfigForm(forms.ModelForm):
+    class Meta:
+        model = SiteConfig
+        fields = ['items_per_page']
+        widgets = {
+            'items_per_page': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 100,
+                'placeholder': 'Items per page (1-100)'
+            }),
+        }
+        labels = {
+            'items_per_page': 'Items per page',
+        }
+
+    def clean_items_per_page(self):
+        items_per_page = self.cleaned_data['items_per_page']
+        if items_per_page < 1 or items_per_page > 100:
+            raise forms.ValidationError('Items per page must be between 1 and 100.')
+        return items_per_page
+

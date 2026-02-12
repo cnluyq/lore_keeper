@@ -122,6 +122,30 @@ class SensitiveWord(models.Model):
         return f"{self.word} -> {self.replacement} ({'enable' if self.is_active else 'disable'})"
 
 
+class SiteConfig(models.Model):
+    items_per_page = models.IntegerField(
+        default=10,
+        verbose_name="Items per page",
+        help_text="Number of items to display per page"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "site configuration"
+        verbose_name_plural = "site configuration"
+
+    def __str__(self):
+        return f"Site Config (items_per_page: {self.items_per_page})"
+
+    @classmethod
+    def get_config(cls):
+        obj, created = cls.objects.get_or_create(pk=1)
+        if created:
+            obj.save()
+        return obj
+
+
 import os
 import json
 from django.db.models.signals import post_delete
