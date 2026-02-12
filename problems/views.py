@@ -41,6 +41,8 @@ from .models import SensitiveWord
 from .forms import SensitiveWordForm
 from .sensitive_utils import SensitiveDataProcessor
 
+from .models import SiteConfig
+from .forms import SiteConfigForm
 from hashlib import pbkdf2_hmac
 import base64, gzip, tarfile, io, tempfile, shutil
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
@@ -122,8 +124,9 @@ def problem_list(request):
             Q(created_by__username__icontains=search_query)
         )
 
-    # Paginate results (10 items per page)
-    paginator = Paginator(problems, 10)
+    # Paginate results (use site config)
+    items_per_page = SiteConfig.get_config().items_per_page
+    paginator = Paginator(problems, items_per_page)
     page_number = request.GET.get('page', 1)
 
     try:
@@ -991,4 +994,24 @@ def view_detail(request, token):
     return render(request, 'problems/view_detail.html', {
         'problem': problem,
         'problem_fields_json': json.dumps(fields, cls=DjangoJSONEncoder),
+    })
+
+
+
+@superuser_required
+def site_config_edit(request):
+    config = SiteConfig.get_config()
+
+    if request.method == 'POST':
+        form = SiteConfigForm(request.POST, instance=config)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Configuration updated successfully!')
+            return redirect('site_config_edit')
+    else:
+        form = SiteConfigForm(instance=config)
+
+    return render(request, 'problems/site_config_edit.html', {
+        'form': form,
+        'config': config,
     })

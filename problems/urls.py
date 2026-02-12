@@ -10,7 +10,7 @@ urlpatterns = [
     path('import/', views.import_json, name='import_json'),
     path('register/', views.register_view, name='register'),
     path('login/', views.login_view, name='login'),
-    path('logout/', views.logout_view, name='logout'),  
+    path('logout/', views.logout_view, name='logout'),
     path('sensitive-words/', views.sensitive_word_list, name='sensitive_word_list'),
     path('sensitive-words/add/', views.sensitive_word_add, name='sensitive_word_add'),
     path('sensitive-words/edit/<int:pk>/', views.sensitive_word_edit, name='sensitive_word_edit'),
@@ -21,4 +21,5 @@ urlpatterns = [
     path('staff/isolated-images/delete/', views.isolated_images_delete, name='isolated_images_delete'),
     path('clear-uploaded-images/', views.clear_uploaded_images, name='clear_uploaded_images'),
     path('view/<uuid:token>/', views.view_detail, name='view_detail'),
+    path('site-config/edit/', views.site_config_edit, name='site_config_edit'),
 ]
