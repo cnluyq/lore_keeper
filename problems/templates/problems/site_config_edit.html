@@ -31,6 +31,36 @@
         </small>
       </div>
 
+      <div class="row">
+        <div class="col-md-4">
+          <label class="form-label" for="{{ form.max_file_size.id_for_label }}">
+            Max file size
+          </label>
+          {{ form.max_file_size }}
+          {% if form.max_file_size.errors %}
+            <div class="text-danger small">
+              {{ form.max_file_size.errors|join:", " }}
+            </div>
+          {% endif %}
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="{{ form.max_file_size_unit.id_for_label }}">
+            Unit
+          </label>
+          {{ form.max_file_size_unit }}
+          {% if form.max_file_size_unit.errors %}
+            <div class="text-danger small">
+              {{ form.max_file_size_unit.errors|join:", " }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-12 mt-2">
+        <small class="form-text text-muted">
+          Maximum size for uploaded file attachments (1-1000 KB or MB)
+        </small>
+      </div>
+
       <div class="col-12 text-center">
         <button class="btn btn-primary px-4">Save Configuration</button>
         <a class="btn btn-outline-secondary px-4 ms-2" href="{% url 'problem_list' %}">

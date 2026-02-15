@@ -128,6 +128,20 @@ class SiteConfig(models.Model):
         verbose_name="Items per page",
         help_text="Number of items to display per page"
     )
+
+    max_file_size = models.IntegerField(
+        default=2,
+        verbose_name="Max file size value",
+        help_text="Maximum file size value (1-1000)"
+    )
+
+    max_file_size_unit = models.CharField(
+        max_length=2,
+        choices=[('KB', 'KB'), ('MB', 'MB')],
+        default='MB',
+        verbose_name="File size unit"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -136,7 +150,14 @@ class SiteConfig(models.Model):
         verbose_name_plural = "site configuration"
 
     def __str__(self):
-        return f"Site Config (items_per_page: {self.items_per_page})"
+        return f"Site Config (items_per_page: {self.items_per_page}, max_file_size: {self.max_file_size}{self.max_file_size_unit})"
+
+    def get_max_file_size_bytes(self):
+        """Convert configured file size to bytes"""
+        if self.max_file_size_unit == 'KB':
+            return self.max_file_size * 1024
+        else:
+            return self.max_file_size * 1024 * 1024
 
     @classmethod
     def get_config(cls):
