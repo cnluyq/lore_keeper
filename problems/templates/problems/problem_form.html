@@ -146,7 +146,7 @@
         {% if form.root_cause.errors %}<div class="text-danger small">{{ form.root_cause.errors|join:", " }}</div>{% endif %}
       </div>
       <div class="col-12">
-        <label class="form-label">Root Cause Files (multiple, max 2MB each)</label>
+        <label class="form-label">Root Cause Files (multiple, max {{ max_file_size_str }} each)</label>
         <input type="file" name="root_cause_files" multiple class="form-control" accept="*/*">
 
         {% load problem_extras %}
@@ -180,7 +180,7 @@
         {% if form.solutions.errors %}<div class="text-danger small">{{ form.solutions.errors|join:", " }}</div>{% endif %}
       </div>
       <div class="col-12">
-        <label class="form-label">Solutions Files (multiple, max 2MB each)</label>
+        <label class="form-label">Solutions Files (multiple, max {{ max_file_size_str }} each)</label>
         <input type="file" name="solutions_files" multiple class="form-control" accept="*/*">
 
         {% if problem %}
@@ -213,7 +213,7 @@
         {% if form.others.errors %}<div class="text-danger small">{{ form.others.errors|join:", " }}</div>{% endif %}
       </div>
       <div class="col-12">
-        <label class="form-label">Others Files (multiple, max 2MB each)</label>
+        <label class="form-label">Others Files (multiple, max {{ max_file_size_str }} each)</label>
         <input type="file" name="others_files" multiple class="form-control" accept="*/*">
 
         {% if problem %}
@@ -316,6 +316,39 @@ function markForDelete(button) {
       itemDiv.style.opacity = '1';
     }
   }
+}
+
+// Validate file size on selection
+function validateFileSize(input) {
+  const maxFileSize = {{ max_file_size_bytes }};
+  const maxSizeStr = '{{ max_file_size_str }}';
+  const files = input.files;
+
+  if (files && files.length > 0) {
+    const oversizedFiles = [];
+
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].size > maxFileSize) {
+        oversizedFiles.push(files[i].name);
+      }
+    }
+
+    if (oversizedFiles.length > 0) {
+      // Clear the file input
+      input.value = '';
+
+      // Show error message
+      const fileList = oversizedFiles.length === 1
+        ? oversizedFiles[0]
+        : `${oversizedFiles.slice(0, -1).join(', ')} and ${oversizedFiles[oversizedFiles.length - 1]}`;
+
+      alert(`The following file(s) exceed the ${maxSizeStr} limit:\n\n${fileList}\n\nPlease select smaller files and try again.`);
+
+      return false;
+    }
+  }
+
+  return true;
 }
 
 // 初始化编辑器状态
@@ -530,6 +563,14 @@ document.addEventListener('DOMContentLoaded', function() {
   if (titleInput && titleInput.value) {
     titleInput.value = unescapeHtml(titleInput.value);
   }
+
+  // Add file size validation for all file inputs
+  const fileInputs = document.querySelectorAll('input[type="file"][name$="_files"]');
+  fileInputs.forEach(input => {
+    input.addEventListener('change', function(e) {
+      validateFileSize(this);
+    });
+  });
 
 });
 
