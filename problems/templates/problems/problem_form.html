@@ -410,7 +410,7 @@ function initEditor(fieldName) {
             input.onchange = () => uploadImage(input.files[0], editor);
             input.click();
           },
-          className: "fa fa-upload", title: "Upload Image"
+          className: "fa fa-upload", title: "Upload Image (max {{ max_file_size_str }})"
         },
         {
           name: "paste",
@@ -433,10 +433,80 @@ function initEditor(fieldName) {
   // 设置编辑器类型隐藏字段的值
   editorTypeField.value = editorStates[fieldName];
 }
+// Show upload loading overlay
+function showUploadLoading() {
+  let overlay = document.getElementById('upload-loading-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'upload-loading-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    `;
+    overlay.innerHTML = `
+      <div style="
+        background: white;
+        padding: 30px 50px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      ">
+        <div style="
+          border: 4px solid #f3f3f3;
+          border-top: 4px solid #3498db;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 15px;
+        "></div>
+        <style>
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        </style>
+        <p style="margin: 0; color: #333; font-size: 16px;">Uploading image...</p>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+}
+
+// Hide upload loading overlay
+function hideUploadLoading() {
+  const overlay = document.getElementById('upload-loading-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+}
 
 function uploadImage(file, editor) {
+  // Validate file size immediately before uploading
+  const maxFileSize = {{ max_file_size_bytes }};
+  const maxSizeStr = '{{ max_file_size_str }}';
+
+  if (file.size > maxFileSize) {
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    alert(`File size (${fileSizeMB} MB) exceeds the ${maxSizeStr} limit.\n\nPlease select a smaller image.`);
+    return;
+  }
+
+  // Show loading overlay immediately
+  showUploadLoading();
+
   const formData = new FormData();
   formData.append('image', file);
+
   fetch('/upload-image/', {
     method: 'POST',
     body: formData,
@@ -454,12 +524,14 @@ function uploadImage(file, editor) {
     }
   })
   .then(data => {
+    hideUploadLoading();
     if (data.url) {
       const imageUrl = data.url;
       editor.codemirror.replaceSelection(`![Image](${imageUrl})`);
     }
   })
   .catch(error => {
+    hideUploadLoading();
     console.error('Error:', error);
     alert(error.message || 'Image upload failed.');
   });
