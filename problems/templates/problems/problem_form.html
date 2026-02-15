@@ -411,18 +411,24 @@ function uploadImage(file, editor) {
       'X-CSRFToken': '{{ csrf_token }}',
     },
   })
-  .then(response => response.json())
+  .then(response => {
+    if (response.ok) {
+      return response.json();
+    } else {
+      return response.json().then(data => {
+        throw new Error(data.error || 'Image upload failed.');
+      });
+    }
+  })
   .then(data => {
     if (data.url) {
       const imageUrl = data.url;
       editor.codemirror.replaceSelection(`![Image](${imageUrl})`);
-    } else {
-      alert('Image upload failed.');
     }
   })
   .catch(error => {
     console.error('Error:', error);
-    alert('Image upload failed.');
+    alert(error.message || 'Image upload failed.');
   });
 }
 
