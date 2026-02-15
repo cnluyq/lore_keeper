@@ -440,9 +440,8 @@ def problem_edit(request, pk):
                 del request.session['uploaded_images']
                 update_fields.append('uploaded_images')
 
-            problem.save(update_fields=update_fields)
-
-            # Now process file field updates ONLY for fields that changed
+            # Process file field updates BEFORE saving the object
+            # This ensures file updates are done correctly and won't be lost
             from django.db import connection
 
             # Only update if there are files to remove or new uploads
@@ -482,6 +481,9 @@ def problem_edit(request, pk):
                         f"UPDATE {table_name} SET {file_field_column} = %s WHERE id = %s",
                         [final_value, problem.id]
                     )
+
+            # Now save the object after file fields have been updated
+            problem.save(update_fields=update_fields)
 
             # Reload object from database to get updated file fields
             problem.refresh_from_db()
