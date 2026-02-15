@@ -49,7 +49,6 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
 # Multi-file constants
 FILE_DELIMITER = '|||'
-MAX_FILE_SIZE = 2 * 1024 * 1024  # 2MB
 
 
 def parse_files(file_field_value):
@@ -220,10 +219,14 @@ def problem_add(request):
                 upload_dir = os.path.join(settings.MEDIA_ROOT, f'{field_base}/temp_{temp_id}/')
                 os.makedirs(upload_dir, exist_ok=True)
 
+                max_size = SiteConfig.get_config().get_max_file_size_bytes()
+                config = SiteConfig.get_config()
+                size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+
                 for f in files:
-                    # Validate file size (2MB)
-                    if f.size > MAX_FILE_SIZE:
-                        messages.warning(request, f'File {f.name} exceeds 2MB limit and was skipped.')
+                    # Validate file size
+                    if f.size > max_size:
+                        messages.warning(request, f'File {f.name} exceeds {size_str} limit and was skipped.')
                         continue
 
                     # Clean filename
@@ -379,10 +382,15 @@ def problem_edit(request, pk):
                     os.makedirs(upload_dir, exist_ok=True)
 
                     filenames = []
+                    # Get file size limit once for this upload batch
+                    max_size = SiteConfig.get_config().get_max_file_size_bytes()
+                    config = SiteConfig.get_config()
+                    size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+
                     for f in files:
-                        # Validate file size (2MB)
-                        if f.size > MAX_FILE_SIZE:
-                            messages.warning(request, f'File {f.name} exceeds 2MB limit and was skipped.')
+                        # Validate file size
+                        if f.size > max_size:
+                            messages.warning(request, f'File {f.name} exceeds {size_str} limit and was skipped.')
                             continue
 
                         # Clean filename
@@ -412,7 +420,7 @@ def problem_edit(request, pk):
             # Use update_fields to only update specific fields (excluding file fields)
             update_fields = ['key_words', 'title', 'description', 'root_cause', 'solutions', 'others',
                             'description_editor_type', 'root_cause_editor_type', 'solutions_editor_type',
-                            'others_editor_type', 'is_public']
+                            'others_editor_type', 'is_public', 'update_time']
             if 'uploaded_images' in request.session:
                 if problem.uploaded_images:
                     uploaded_images = json.loads(problem.uploaded_images)
@@ -804,6 +812,17 @@ def sensitive_word_delete(request, pk):
 def upload_image(request):
     if request.method == 'POST' and request.FILES.get('image'):
         image = request.FILES['image']
+
+        # Validate file size before saving
+        max_size = SiteConfig.get_config().get_max_file_size_bytes()
+        config = SiteConfig.get_config()
+        size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+
+        if image.size > max_size:
+            return JsonResponse({
+                'error': f'Image size exceeds {size_str} limit'
+            }, status=400)
+
         clean_name = image.name.replace(' ', '_')
         upload_images_path = os.path.join(settings.MEDIA_ROOT, 'upload_images')
         fs = FileSystemStorage(location=upload_images_path)
