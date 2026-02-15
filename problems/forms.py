@@ -75,7 +75,7 @@ class SensitiveWordForm(forms.ModelForm):
 class SiteConfigForm(forms.ModelForm):
     class Meta:
         model = SiteConfig
-        fields = ['items_per_page']
+        fields = ['items_per_page', 'max_file_size', 'max_file_size_unit']
         widgets = {
             'items_per_page': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -83,9 +83,20 @@ class SiteConfigForm(forms.ModelForm):
                 'max': 100,
                 'placeholder': 'Items per page (1-100)'
             }),
+            'max_file_size': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 1000,
+                'placeholder': 'File size value (1-1000)'
+            }),
+            'max_file_size_unit': forms.Select(attrs={
+                'class': 'form-select'
+            }),
         }
         labels = {
             'items_per_page': 'Items per page',
+            'max_file_size': 'Max file size',
+            'max_file_size_unit': 'Unit',
         }
 
     def clean_items_per_page(self):
@@ -93,4 +104,12 @@ class SiteConfigForm(forms.ModelForm):
         if items_per_page < 1 or items_per_page > 100:
             raise forms.ValidationError('Items per page must be between 1 and 100.')
         return items_per_page
+
+    def clean_max_file_size(self):
+        max_file_size = self.cleaned_data['max_file_size']
+        if max_file_size < 1:
+            raise forms.ValidationError('Max file size must be at least 1.')
+        if max_file_size > 1000:
+            raise forms.ValidationError('Max file size cannot exceed 1000.')
+        return max_file_size
 
