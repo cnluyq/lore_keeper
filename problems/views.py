@@ -338,7 +338,16 @@ def problem_add(request):
         return redirect('problem_list')
     else:
         form = ProblemForm()
-    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Add'})
+        # Get file size config for frontend validation
+        config = SiteConfig.get_config()
+        max_file_size_bytes = config.get_max_file_size_bytes()
+        max_file_size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+    return render(request, 'problems/problem_form.html', {
+        'form': form,
+        'action': 'Add',
+        'max_file_size_bytes': max_file_size_bytes,
+        'max_file_size_str': max_file_size_str
+    })
 
 @login_required
 @owner_or_superuser_required
@@ -495,7 +504,17 @@ def problem_edit(request, pk):
             })
     else:
         form = ProblemForm(instance=problem)
-    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Edit', 'problem': problem})
+        # Get file size config for frontend validation
+        config = SiteConfig.get_config()
+        max_file_size_bytes = config.get_max_file_size_bytes()
+        max_file_size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+    return render(request, 'problems/problem_form.html', {
+        'form': form,
+        'action': 'Edit',
+        'problem': problem,
+        'max_file_size_bytes': max_file_size_bytes,
+        'max_file_size_str': max_file_size_str
+    })
 
 @login_required
 @owner_or_superuser_required
