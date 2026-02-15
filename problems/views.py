@@ -338,7 +338,16 @@ def problem_add(request):
         return redirect('problem_list')
     else:
         form = ProblemForm()
-    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Add'})
+        # Get file size config for frontend validation
+        config = SiteConfig.get_config()
+        max_file_size_bytes = config.get_max_file_size_bytes()
+        max_file_size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+    return render(request, 'problems/problem_form.html', {
+        'form': form,
+        'action': 'Add',
+        'max_file_size_bytes': max_file_size_bytes,
+        'max_file_size_str': max_file_size_str
+    })
 
 @login_required
 @owner_or_superuser_required
@@ -431,9 +440,8 @@ def problem_edit(request, pk):
                 del request.session['uploaded_images']
                 update_fields.append('uploaded_images')
 
-            problem.save(update_fields=update_fields)
-
-            # Now process file field updates ONLY for fields that changed
+            # Process file field updates BEFORE saving the object
+            # This ensures file updates are done correctly and won't be lost
             from django.db import connection
 
             # Only update if there are files to remove or new uploads
@@ -474,6 +482,15 @@ def problem_edit(request, pk):
                         [final_value, problem.id]
                     )
 
+                    # Sync in-memory object with database after SQL UPDATE
+                    # This prevents Django.save() from re-applying the old value
+                    file_field_obj = getattr(problem, f'{field_base}_file', None)
+                    if file_field_obj and hasattr(file_field_obj, "name"):
+                        file_field_obj.name = final_value if final_value else None
+
+            # Now save the object after file fields have been updated
+            problem.save(update_fields=update_fields)
+
             # Reload object from database to get updated file fields
             problem.refresh_from_db()
 
@@ -495,7 +512,17 @@ def problem_edit(request, pk):
             })
     else:
         form = ProblemForm(instance=problem)
-    return render(request, 'problems/problem_form.html', {'form': form, 'action': 'Edit', 'problem': problem})
+        # Get file size config for frontend validation
+        config = SiteConfig.get_config()
+        max_file_size_bytes = config.get_max_file_size_bytes()
+        max_file_size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+    return render(request, 'problems/problem_form.html', {
+        'form': form,
+        'action': 'Edit',
+        'problem': problem,
+        'max_file_size_bytes': max_file_size_bytes,
+        'max_file_size_str': max_file_size_str
+    })
 
 @login_required
 @owner_or_superuser_required
