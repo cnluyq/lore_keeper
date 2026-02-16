@@ -482,12 +482,6 @@ def problem_edit(request, pk):
                         [final_value, problem.id]
                     )
 
-                    # Sync in-memory object with database after SQL UPDATE
-                    # This prevents Django.save() from re-applying the old value
-                    file_field_obj = getattr(problem, f'{field_base}_file', None)
-                    if file_field_obj and hasattr(file_field_obj, "name"):
-                        file_field_obj.name = final_value if final_value else None
-
             # Now save the object after file fields have been updated
             problem.save(update_fields=update_fields)
 
