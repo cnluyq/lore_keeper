@@ -427,9 +427,10 @@ def problem_edit(request, pk):
             problem.is_public = processed_form.cleaned_data.get('is_public', problem.is_public)
 
             # Use update_fields to only update specific fields (excluding file fields)
+            # Note: update_time is auto_now=True, so it will be updated automatically
             update_fields = ['key_words', 'title', 'description', 'root_cause', 'solutions', 'others',
                             'description_editor_type', 'root_cause_editor_type', 'solutions_editor_type',
-                            'others_editor_type', 'is_public', 'update_time']
+                            'others_editor_type', 'is_public']
             if 'uploaded_images' in request.session:
                 if problem.uploaded_images:
                     uploaded_images = json.loads(problem.uploaded_images)
@@ -481,12 +482,6 @@ def problem_edit(request, pk):
                         f"UPDATE {table_name} SET {file_field_column} = %s WHERE id = %s",
                         [final_value, problem.id]
                     )
-
-                    # Sync in-memory object with database after SQL UPDATE
-                    # This prevents Django.save() from re-applying the old value
-                    file_field_obj = getattr(problem, f'{field_base}_file', None)
-                    if file_field_obj and hasattr(file_field_obj, "name"):
-                        file_field_obj.name = final_value if final_value else None
 
             # Now save the object after file fields have been updated
             problem.save(update_fields=update_fields)
