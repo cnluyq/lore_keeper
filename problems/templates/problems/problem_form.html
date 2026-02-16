@@ -156,15 +156,15 @@
               <div id="root_cause_files_list" class="mt-2">
                 <div class="small text-muted mb-1">Current files:</div>
                 {% for filename, url in root_cause_files %}
-                  <div class="d-flex justify-content-between align-items-center mb-1 small bg-light p-2 rounded" id="root_cause_file_item_{{ forloop.counter }}">
-                    <a href="{{ url }}" target="_blank">{{ filename }}</a>
-                    <div>
-                      <input type="checkbox" class="form-check-input me-2 delete-checkbox" data-field="root_cause" data-filename="{{ filename|escapejs }}" value="{{ filename|escapejs }}" style="display:none;" name="">
-                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="markForDelete(this)">
-                        Delete
-                      </button>
-                    </div>
-                  </div>
+                   <div class="d-flex justify-content-between align-items-center mb-1 small bg-light p-2 rounded" id="root_cause_file_item_{{ forloop.counter }}">
+                     <a href="{{ url }}" target="_blank">{{ filename }}</a>
+                     <div>
+                       <input type="checkbox" class="form-check-input me-2 delete-checkbox" data-field="root_cause" data-filename="{{ filename|escapejs }}" value="{{ filename }}" style="display:none;" name="">
+                       <button type="button" class="btn btn-sm btn-outline-danger" onclick="markForDelete(this)">
+                         Delete
+                       </button>
+                     </div>
+                   </div>
                 {% endfor %}
               </div>
             {% endif %}
@@ -189,15 +189,15 @@
               <div id="solutions_files_list" class="mt-2">
                 <div class="small text-muted mb-1">Current files:</div>
                 {% for filename, url in solutions_files %}
-                  <div class="d-flex justify-content-between align-items-center mb-1 small bg-light p-2 rounded" id="solutions_file_item_{{ forloop.counter }}">
-                    <a href="{{ url }}" target="_blank">{{ filename }}</a>
-                    <div>
-                      <input type="checkbox" class="form-check-input me-2 delete-checkbox" data-field="solutions" data-filename="{{ filename|escapejs }}" value="{{ filename|escapejs }}" style="display:none;" name="">
-                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="markForDelete(this)">
-                        Delete
-                      </button>
-                    </div>
-                  </div>
+                   <div class="d-flex justify-content-between align-items-center mb-1 small bg-light p-2 rounded" id="solutions_file_item_{{ forloop.counter }}">
+                     <a href="{{ url }}" target="_blank">{{ filename }}</a>
+                     <div>
+                       <input type="checkbox" class="form-check-input me-2 delete-checkbox" data-field="solutions" data-filename="{{ filename|escapejs }}" value="{{ filename }}" style="display:none;" name="">
+                       <button type="button" class="btn btn-sm btn-outline-danger" onclick="markForDelete(this)">
+                         Delete
+                       </button>
+                     </div>
+                   </div>
                 {% endfor %}
               </div>
             {% endif %}
@@ -222,15 +222,15 @@
               <div id="others_files_list" class="mt-2">
                 <div class="small text-muted mb-1">Current files:</div>
                 {% for filename, url in others_files %}
-                  <div class="d-flex justify-content-between align-items-center mb-1 small bg-light p-2 rounded" id="others_file_item_{{ forloop.counter }}">
-                    <a href="{{ url }}" target="_blank">{{ filename }}</a>
-                    <div>
-                      <input type="checkbox" class="form-check-input me-2 delete-checkbox" data-field="others" data-filename="{{ filename|escapejs }}" value="{{ filename|escapejs }}" style="display:none;" name="">
-                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="markForDelete(this)">
-                        Delete
-                      </button>
-                    </div>
-                  </div>
+                   <div class="d-flex justify-content-between align-items-center mb-1 small bg-light p-2 rounded" id="others_file_item_{{ forloop.counter }}">
+                     <a href="{{ url }}" target="_blank">{{ filename }}</a>
+                     <div>
+                       <input type="checkbox" class="form-check-input me-2 delete-checkbox" data-field="others" data-filename="{{ filename|escapejs }}" value="{{ filename }}" style="display:none;" name="">
+                       <button type="button" class="btn btn-sm btn-outline-danger" onclick="markForDelete(this)">
+                         Delete
+                       </button>
+                     </div>
+                   </div>
                 {% endfor %}
               </div>
             {% endif %}
