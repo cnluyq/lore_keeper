@@ -383,6 +383,10 @@ function initEditor(fieldName) {
       element: textarea,
       autoDownloadFontAwesome: false,
       spellChecker: false,
+      previewRender: function(plainText) {
+        // 使用带高亮的 marked.js 渲染
+        return marked.parse(plainText);
+      },
       toolbar: [
         "heading", "bold", "italic", "strikethrough",
         "|", "code", 
@@ -550,6 +554,10 @@ function toggleEditor(fieldName) {
       element: textarea,
       autoDownloadFontAwesome: false,
       spellChecker: false,
+      previewRender: function(plainText) {
+        // 使用带高亮的 marked.js 渲染
+        return marked.parse(plainText);
+      },
       toolbar: [
         "heading", "bold", "italic", "strikethrough",
         "|", "code",
@@ -612,6 +620,18 @@ function toggleEditor(fieldName) {
   // 更新隐藏字段的值
   editorTypeField.value = editorStates[fieldName];
 }
+
+// 配置 marked.js 代码高亮
+marked.setOptions({
+  gfm: true,               // GitHub Flavored Markdown
+  breaks: true,            // 换行符直接换行
+  highlight: function (code, lang) {
+    if (lang && Prism.languages[lang]) {
+      return Prism.highlight(code, Prism.languages[lang], lang);
+    }
+    return Prism.highlight(code, Prism.languages.plaintext, 'plaintext');
+  }
+});
 
 // 在DOM完全加载后绑定事件
 document.addEventListener('DOMContentLoaded', function() {
