@@ -653,7 +653,10 @@ function importWithPwd() {
       alert('Network error:' + err);
   });
 }
-document.getElementById('importFile').onchange = importWithPwd;
+const importFile1 = document.getElementById('importFile');
+if (importFile1) {
+  importFile1.onchange = importWithPwd;
+}
 
 </script>
 
@@ -690,8 +693,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* 密码版导出/导入 事件绑定 */
-document.getElementById('btnExport').onclick = exportWithPwd;
-document.getElementById('importFile').onchange = importWithPwd;
+const btnExport = document.getElementById('btnExport');
+if (btnExport) {
+  btnExport.onclick = exportWithPwd;
+}
+const importFile = document.getElementById('importFile');
+if (importFile) {
+  importFile.onchange = importWithPwd;
+}
 
 // 自定义 Toast 显示函数
 function showToast(message) {
