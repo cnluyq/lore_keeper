@@ -1,6 +1,6 @@
 {% extends 'problems/base.html' %}
-{% load problem_extras %}
 {% load static %}
+{% load problem_extras %}
 
 {% block content %}
 <style>
@@ -260,11 +260,10 @@
 </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
-<link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/clipboard-polyfill/dist/clipboard-polyfill.min.js"></script>
+<script src="{% static 'libs/prismjs/prism.min.js' %}" defer></script>
+<script src="{% static 'libs/prismjs/plugins/autoloader/prism-autoloader.min.js' %}" defer></script>
+<link href="{% static 'libs/prismjs/themes/prism.min.css' %}" rel="stylesheet"/>
+<script src="{% static 'libs/clipboard/clipboard-polyfill.min.js' %}" defer></script>
 
 <script>
 // 从 problem_list.html 复制的 Markdown 渲染逻辑

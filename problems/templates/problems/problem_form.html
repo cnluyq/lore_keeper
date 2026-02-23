@@ -1,4 +1,5 @@
 {% extends 'problems/base.html' %}
+{% load static %}
 {% block content %}
 <style>
   .form-check-input.custom-checkbox {
@@ -259,11 +260,10 @@
   </div>
 </div>
 
-<!-- EasyMDE CDN -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
-
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
-<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+<!-- Font Awesome & EasyMDE -->
+<link rel="stylesheet" href="{% static 'libs/fontawesome/css/font-awesome.min.css' %}">
+<link rel="stylesheet" href="{% static 'libs/easymde/easymde.min.css' %}">
+<script src="{% static 'libs/easymde/easymde.min.js' %}" defer></script>
 
 
 <style>
