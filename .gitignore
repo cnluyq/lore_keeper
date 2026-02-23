@@ -209,3 +209,7 @@ __marimo__/
 problems/migrations/
 nohup.out
 uploads/
+
+# Performance optimization documentation (local only)
+DEPLOYMENT_GUIDE.md
+OPTIMIZATION_SUMMARY.md
