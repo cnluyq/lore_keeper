@@ -17,6 +17,8 @@ python3 manage.py makemigrations problems
 
 python3 manage.py migrate
 
+python manage.py collectstatic --noinput
+
 python3 manage.py createsuperuser
 
 python3 manage.py runserver [ip]:[port]
