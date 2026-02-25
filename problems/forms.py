@@ -1,5 +1,5 @@
 from django import forms
-from .models import Problem, SensitiveWord, SiteConfig
+from .models import Problem, SensitiveWord, SiteConfig, CvBase
 from django.core.exceptions import ValidationError
 import re
 import html
@@ -112,4 +112,32 @@ class SiteConfigForm(forms.ModelForm):
         if max_file_size > 1000:
             raise forms.ValidationError('Max file size cannot exceed 1000.')
         return max_file_size
+
+class CvBaseForm(forms.ModelForm):
+    class Meta:
+        model = CvBase
+        fields = ['record_date', 'title', 'content']
+        widgets = {
+            'record_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Default editor type is markdown
+        if self.instance.pk:
+            self.initial['content_editor_type'] = self.instance.content_editor_type or 'markdown'
+        else:
+            self.initial['content_editor_type'] = 'markdown'
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # 自动转义HTML字符
+        text_fields = ['title', 'content']
+        for field_name in text_fields:
+            text = cleaned_data.get(field_name, '')
+            if text:
+                cleaned_data[field_name] = html.escape(text)
+
+        return cleaned_data
 

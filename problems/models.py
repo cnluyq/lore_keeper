@@ -106,6 +106,57 @@ class Problem(models.Model):
             files.remove(filename)
         self.others_file.name = self._build_filename_string(files)
 
+class CvBase(models.Model):
+    record_date = models.DateField(unique=True, verbose_name="record date")
+    title = models.CharField(max_length=255, verbose_name="title")
+    content = models.TextField(blank=True, verbose_name="content")
+    content_file = models.FileField(upload_to='', blank=True, null=True, verbose_name="content file")
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="create time")
+    update_time = models.DateTimeField(auto_now=True, verbose_name="update time")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="created by")
+    content_editor_type = models.CharField(max_length=10, choices=[('markdown', 'Markdown'), ('plain', 'Plain Text')], default='plain', verbose_name="content editor type")
+
+    FILE_DELIMITER = '|||'
+
+    class Meta:
+        ordering = ['-record_date']
+        verbose_name = "cv base"
+        verbose_name_plural = "cv base"
+
+    def __str__(self):
+        return f"{self.record_date} - {self.title}"
+
+    def _parse_files(self, file_field_value):
+        """Parse 'file1.pdf|||file2.doc' -> ['file1.pdf', 'file2.doc']"""
+        if not file_field_value:
+            return []
+        return file_field_value.split(self.FILE_DELIMITER)
+
+    def _build_filename_string(self, filenames):
+        """Build ['file1.pdf', 'file2.doc'] -> 'file1.pdf|||file2.doc'"""
+        return self.FILE_DELIMITER.join(filenames)
+
+    def get_content_files(self):
+        """Return list of content filenames"""
+        return self._parse_files(self.content_file.name if self.content_file else None)
+
+    def set_content_files(self, filenames):
+        """Set content files from a list of filenames"""
+        self.content_file.name = self._build_filename_string(filenames)
+
+    def add_content_file(self, filename):
+        """Add a content file to the list"""
+        files = self.get_content_files()
+        files.append(filename)
+        self.content_file.name = self._build_filename_string(files)
+
+    def remove_content_file(self, filename):
+        """Remove a content file from the list"""
+        files = self.get_content_files()
+        if filename in files:
+            files.remove(filename)
+        self.content_file.name = self._build_filename_string(files)
+
 class SensitiveWord(models.Model):
     word = models.CharField(max_length=100, unique=True, verbose_name="sensitive word")
     replacement = models.CharField(max_length=100, default="***", verbose_name="replacement word")
@@ -171,7 +222,7 @@ import os
 import json
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
-from .models import Problem
+from .models import Problem, CvBase
 
 @receiver(post_delete, sender=Problem)
 def auto_delete_files_on_problem_delete(sender, instance, **kwargs):
@@ -212,3 +263,30 @@ def auto_delete_files_on_problem_delete(sender, instance, **kwargs):
             print(f"auto_delete_files_on_problem_delete::image_path", image_path)
             if os.path.isfile(image_path):
                 os.remove(image_path)
+
+@receiver(post_delete, sender=CvBase)
+def auto_delete_files_on_cvbase_delete(sender, instance, **kwargs):
+    # Delete all files in the cvbase's directory structure: uploads/cv_base/<id>/content/
+    if instance.id:
+        cv_base_dir = os.path.join(settings.MEDIA_ROOT, 'cv_base', str(instance.id))
+        if os.path.isdir(cv_base_dir):
+            for field_base in ['content']:
+                field_dir = os.path.join(cv_base_dir, field_base)
+                if os.path.isdir(field_dir):
+                    for filename in os.listdir(field_dir):
+                        file_path = os.path.join(field_dir, filename)
+                        if os.path.isfile(file_path):
+                            try:
+                                os.remove(file_path)
+                            except Exception as e:
+                                print(f'Failed to delete {file_path}: {e}')
+                    # Remove the field directory if empty
+                    try:
+                        os.rmdir(field_dir)
+                    except Exception:
+                        pass
+            # Remove the cv_base directory if empty
+            try:
+                os.rmdir(cv_base_dir)
+            except Exception:
+                pass

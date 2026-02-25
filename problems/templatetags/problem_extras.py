@@ -20,13 +20,14 @@ def basename(value):
     return PurePath(value).name
 
 @register.filter
-def get_field_files(problem, field):
+def get_field_files(obj, field):
     """
     Return list of (filename, url) tuples for a multi-file field.
     Usage: {{ problem|get_field_files:'root_cause' }}
-    Files are stored at: uploads/<id>/<field>/<filename>
+    Usage: {{ cv_record|get_field_files:'content' }}
+    Files are stored at: uploads/<id>/<field>/<filename> or uploads/cv_base/<id>/<field>/<filename>
     """
-    file_field = getattr(problem, f'{field}_file')
+    file_field = getattr(obj, f'{field}_file')
     if not file_field or not file_field.name:
         return []
 
@@ -35,12 +36,23 @@ def get_field_files(problem, field):
     # Check if it's new multi-file format (contains ||| delimiter)
     if FILE_DELIMITER in file_path:
         filenames = file_path.split(FILE_DELIMITER)
-        return [(f, f'/uploads/{problem.id}/{field}/{f}') for f in filenames]
+        # Check if it's CvBase model (has cv_base in path prefix)
+        if hasattr(obj, 'record_date'):
+            # CvBase model
+            return [(f, f'/uploads/cv_base/{obj.id}/{field}/{f}') for f in filenames]
+        else:
+            # Problem model
+            return [(f, f'/uploads/{obj.id}/{field}/{f}') for f in filenames]
     else:
         # Single file format - just the filename stored directly
-        # Generate URL as /uploads/<id>/<field>/<filename>
         filename = os.path.basename(file_path)
-        return [(filename, f'/uploads/{problem.id}/{field}/{filename}')]
+        # Check if it's CvBase model
+        if hasattr(obj, 'record_date'):
+            # CvBase model
+            return [(filename, f'/uploads/cv_base/{obj.id}/{field}/{filename}')]
+        else:
+            # Problem model
+            return [(filename, f'/uploads/{obj.id}/{field}/{filename}')]
 
 @register.filter
 def get_file_count(file_field_value):

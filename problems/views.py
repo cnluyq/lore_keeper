@@ -41,8 +41,8 @@ from .models import SensitiveWord
 from .forms import SensitiveWordForm
 from .sensitive_utils import SensitiveDataProcessor
 
-from .models import SiteConfig
-from .forms import SiteConfigForm
+from .models import SiteConfig, CvBase
+from .forms import SiteConfigForm, CvBaseForm
 from hashlib import pbkdf2_hmac
 import base64, gzip, tarfile, io, tempfile, shutil
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
@@ -1055,3 +1055,356 @@ def site_config_edit(request):
         'form': form,
         'config': config,
     })
+
+# ---------- CV Base Views ----------
+@login_required
+def cv_base_list(request):
+    cv_records = CvBase.objects.filter(created_by=request.user).order_by('-record_date')
+    
+    # Group records by year and month
+    grouped_records = {}
+    for record in cv_records:
+        year = record.record_date.year
+        month = record.record_date.month
+        if year not in grouped_records:
+            grouped_records[year] = {}
+        if month not in grouped_records[year]:
+            grouped_records[year][month] = []
+        grouped_records[year][month].append(record)
+
+    context = {
+        'grouped_records': grouped_records,
+        'user': request.user,
+    }
+    return render(request, 'problems/cv_base_list.html', context)
+
+@login_required
+def cv_base_edit(request, pk):
+    cv_record = get_object_or_404(CvBase, pk=pk)
+    if cv_record.created_by != request.user and not request.user.is_superuser:
+        raise PermissionDenied
+
+    if request.method == 'POST':
+        form = CvBaseForm(request.POST, request.FILES, instance=cv_record)
+        if not form.is_valid():
+            return render(request, 'problems/cv_base_form.html', {
+                'form': form,
+                'action': 'Edit'
+            })
+
+        try:
+            # Handle file deletions
+            delete_list = request.POST.getlist('content_files_delete')
+            if delete_list:
+                for filename in delete_list:
+                    delete_file_from_disk_cvbase(cv_record, 'content', filename)
+                # Update database to remove deleted files from the list
+                from django.db import connection
+                cursor = connection.cursor()
+                table_name = CvBase._meta.db_table
+                
+                # Get current file list from database
+                cursor.execute(
+                    f"SELECT content_file FROM {table_name} WHERE id = %s",
+                    [cv_record.id]
+                )
+                current_value = cursor.fetchone()[0]
+                
+                # Parse existing filenames
+                existing_filenames = []
+                if current_value:
+                    existing_filenames = parse_files(current_value)
+                
+                # Remove files marked for deletion
+                for filename in delete_list:
+                    if filename in existing_filenames:
+                        existing_filenames.remove(filename)
+                
+                # Update database with final file list
+                final_value = build_filename_string(existing_filenames) if existing_filenames else None
+                cursor.execute(
+                    f"UPDATE {table_name} SET content_file = %s WHERE id = %s",
+                    [final_value, cv_record.id]
+                )
+                # Refresh the record to get updated file field
+                cv_record.refresh_from_db()
+
+            # Handle new file uploads
+            if 'content_files' in request.FILES:
+                files = request.FILES.getlist('content_files')
+                upload_dir = os.path.join(settings.MEDIA_ROOT, 'cv_base', str(cv_record.id), 'content')
+                os.makedirs(upload_dir, exist_ok=True)
+
+                filenames = []
+                max_size = SiteConfig.get_config().get_max_file_size_bytes()
+                config = SiteConfig.get_config()
+                size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+
+                for f in files:
+                    if f.size > max_size:
+                        messages.warning(request, f'File {f.name} exceeds {size_str} limit and was skipped.')
+                        continue
+
+                    clean_name = f.name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+                    fs = FileSystemStorage(location=upload_dir)
+                    filename = fs.save(clean_name, f)
+                    filenames.append(filename)
+
+                if filenames:
+                    # Add new files to existing files
+                    existing_files = cv_record.get_content_files()
+                    existing_files.extend(filenames)
+                    from django.db import connection
+                    cursor = connection.cursor()
+                    table_name = CvBase._meta.db_table
+                    file_string = build_filename_string(existing_files) if existing_files else None
+                    cursor.execute(
+                        f"UPDATE {table_name} SET content_file = %s WHERE id = %s",
+                        [file_string, cv_record.id]
+                    )
+
+            # Save form fields
+            cv_record.title = form.cleaned_data.get('title', cv_record.title)
+            cv_record.content = form.cleaned_data.get('content', cv_record.content)
+            cv_record.content_editor_type = form.cleaned_data.get('content_editor_type', cv_record.content_editor_type)
+            
+            update_fields = ['title', 'content', 'content_editor_type', 'update_time']
+            cv_record.save(update_fields=update_fields)
+            
+            cv_record.refresh_from_db()
+            messages.success(request, 'CV record updated successfully!')
+            return redirect('cv_base_list')
+        
+        except Exception as e:
+            print(f"Error during form processing: {e}")
+            messages.error(request, f'Error saving record: {str(e)}')
+            return render(request, 'problems/cv_base_form.html', {
+                'form': form,
+                'action': 'Edit'
+            })
+    else:
+        form = CvBaseForm(instance=cv_record)
+        config = SiteConfig.get_config()
+        max_file_size_bytes = config.get_max_file_size_bytes()
+        max_file_size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+
+    return render(request, 'problems/cv_base_form.html', {
+        'form': form,
+        'action': 'Edit',
+        'cv_record': cv_record,
+        'max_file_size_bytes': max_file_size_bytes,
+        'max_file_size_str': max_file_size_str
+    })
+
+@login_required
+def cv_base_add(request):
+    if request.method == 'POST':
+        form = CvBaseForm(request.POST, request.FILES)
+        if not form.is_valid():
+            return render(request, 'problems/cv_base_form.html', {
+                'form': form,
+                'action': 'Add'
+            })
+
+        obj = form.save(commit=False)
+        obj.created_by = request.user
+
+        # Handle file uploads
+        file_info = {}
+        import time
+        temp_id = str(int(time.time() * 1000))
+
+        if 'content_files' in request.FILES:
+            files = request.FILES.getlist('content_files')
+            filenames = []
+            upload_dir = os.path.join(settings.MEDIA_ROOT, f'content/temp_{temp_id}/')
+            os.makedirs(upload_dir, exist_ok=True)
+
+            max_size = SiteConfig.get_config().get_max_file_size_bytes()
+            config = SiteConfig.get_config()
+            size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+
+            for f in files:
+                if f.size > max_size:
+                    messages.warning(request, f'File {f.name} exceeds {size_str} limit and was skipped.')
+                    continue
+
+                clean_name = f.name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+                fs = FileSystemStorage(location=upload_dir)
+                filename = fs.save(clean_name, f)
+                filenames.append(filename)
+
+            file_info['content'] = filenames
+
+        obj.save()
+
+        # Move files from temp to final directory
+        from django.db import connection
+        cursor = connection.cursor()
+
+        for field_base, filenames in file_info.items():
+            if filenames:
+                final_dir = os.path.join(settings.MEDIA_ROOT, 'cv_base', str(obj.id), field_base)
+                os.makedirs(final_dir, exist_ok=True)
+
+                temp_dir = os.path.join(settings.MEDIA_ROOT, f'{field_base}/temp_{temp_id}/')
+                for filename in filenames:
+                    src = os.path.join(temp_dir, filename)
+                    dst = os.path.join(final_dir, filename)
+                    if os.path.exists(src):
+                        os.rename(src, dst)
+
+                table_name = CvBase._meta.db_table
+                file_field_column = f'{field_base}_file'
+                file_string = build_filename_string(filenames)
+
+                cursor.execute(
+                    f"UPDATE {table_name} SET {file_field_column} = %s WHERE id = %s",
+                    [file_string, obj.id]
+                )
+
+        # Clean up temp directories
+        for field_base in ['content']:
+            temp_dir = os.path.join(settings.MEDIA_ROOT, f'{field_base}/temp_{temp_id}/')
+            if os.path.isdir(temp_dir):
+                for filename in os.listdir(temp_dir):
+                    file_path = os.path.join(temp_dir, filename)
+                    if os.path.isfile(file_path):
+                        try:
+                            os.remove(file_path)
+                        except:
+                            pass
+                try:
+                    os.rmdir(temp_dir)
+                except:
+                    pass
+
+            old_temp_dir = os.path.join(settings.MEDIA_ROOT, f'{field_base}/temp/')
+            if os.path.isdir(old_temp_dir):
+                for filename in os.listdir(old_temp_dir):
+                    file_path = os.path.join(old_temp_dir, filename)
+                    if os.path.isfile(file_path):
+                        try:
+                            os.remove(file_path)
+                        except:
+                            pass
+                try:
+                    os.rmdir(old_temp_dir)
+                except:
+                    pass
+
+        obj.refresh_from_db()
+        messages.success(request, 'CV record added successfully!')
+        return redirect('cv_base_list')
+    else:
+        form = CvBaseForm()
+        config = SiteConfig.get_config()
+        max_file_size_bytes = config.get_max_file_size_bytes()
+        max_file_size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+
+    return render(request, 'problems/cv_base_form.html', {
+        'form': form,
+        'action': 'Add',
+        'max_file_size_bytes': max_file_size_bytes,
+        'max_file_size_str': max_file_size_str
+    })
+
+@login_required
+def cv_base_delete(request, pk):
+    cv_record = get_object_or_404(CvBase, pk=pk)
+    if cv_record.created_by != request.user and not request.user.is_superuser:
+        raise PermissionDenied
+    cv_record.delete()
+    return redirect('cv_base_list')
+
+@login_required
+def cv_base_detail(request, pk):
+    cv_record = get_object_or_404(CvBase, pk=pk)
+    if cv_record.created_by != request.user and not request.user.is_superuser:
+        raise HttpResponseForbidden("You don't have permission to view this record.")
+    
+    fields = {
+        'content': {'text': cv_record.content, 'editor': cv_record.content_editor_type}
+    }
+    return render(request, 'problems/cv_base_detail.html', {
+        'cv_record': cv_record,
+        'cv_fields_json': json.dumps(fields, cls=DjangoJSONEncoder),
+    })
+
+@login_required
+def cv_base_calendar_days(request):
+    """API to get existing dates for calendar"""
+    year = request.GET.get('year')
+    month = request.GET.get('month')
+    
+    if not year or not month:
+        return JsonResponse({'error': 'Year and month required'}, status=400)
+    
+    try:
+        year = int(year)
+        month = int(month)
+    except ValueError:
+        return JsonResponse({'error': 'Invalid year or month'}, status=400)
+    
+    existing_dates = list(
+        CvBase.objects.filter(
+            created_by=request.user,
+            record_date__year=year,
+            record_date__month=month
+        ).values_list('record_date__day', flat=True)
+    )
+    
+    return JsonResponse({'existing_dates': existing_dates})
+
+@login_required
+def cv_base_create_by_date(request):
+    """Create CV record for specific date"""
+    if request.method == 'POST':
+        body = json.loads(request.body)
+        date_str = body.get('date')
+        if not date_str:
+            return JsonResponse({'error': 'Date required'}, status=400)
+        
+        try:
+            from datetime import datetime
+            record_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'error': 'Invalid date format'}, status=400)
+        
+        # Check if date already exists
+        if CvBase.objects.filter(created_by=request.user, record_date=record_date).exists():
+            return JsonResponse({'error': 'Date already exists'}, status=400)
+        
+        # Create record and redirect to edit
+        cv_record = CvBase.objects.create(
+            record_date=record_date,
+            title='',
+            content='',
+            created_by=request.user
+        )
+        
+        return JsonResponse({'redirect_url': f'/cv-base/edit/{cv_record.id}/'})
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+def delete_file_from_disk_cvbase(cv_base, field_base, filename):
+    """Delete a specific file from disk for a cv_base record. Directory: uploads/cv_base/<id>/<field_base>/"""
+    file_path = os.path.join(settings.MEDIA_ROOT, 'cv_base', str(cv_base.id), field_base, filename)
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            return True
+        except Exception as e:
+            print(f'Failed to delete {file_path}: {e}')
+            return False
+    return False
+
+def cv_base_owner_or_superuser_required(view_func):
+    """Allow creator or superuser"""
+    def _wrapped_view(request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        obj = get_object_or_404(CvBase, pk=pk)
+        if request.user.is_superuser or obj.created_by == request.user:
+            return view_func(request, *args, **kwargs)
+        raise PermissionDenied
+    return _wrapped_view
