@@ -105,7 +105,6 @@
     <div>
       {% if user.is_authenticated %}
         <span class="text-light me-3">Welcome, {{ user.username }}</span>
-        <a class="btn btn-outline-light btn-sm" href="{% url 'cv_base_list' %}">CV Base</a>
         <a class="btn btn-outline-light btn-sm" href="{% url 'logout' %}">Logout</a>
       {% else %}
         <a class="btn btn-outline-light btn-sm me-2" href="{% url 'login' %}">Login</a>
@@ -117,8 +116,8 @@
         <a class="btn btn-outline-light btn-sm ms-2" href="{% url 'user_list' %}">Users</a>
         <a class="btn btn-outline-light btn-sm ms-2" href="{% url 'sensitive_word_list' %}">Sensitive Words</a>
 	<a class="btn btn-outline-light btn-sm ms-2" href="{% url 'resource_management' %}">Resource</a>
-	<a class="btn btn-outline-light btn-sm ms-2" href="{% url 'site_config_edit' %}">Config</a>
         <a class="btn btn-outline-light btn-sm ms-2" href="{% url 'cv_base_list' %}">CV Base</a>
+	<a class="btn btn-outline-light btn-sm ms-2" href="{% url 'site_config_edit' %}">Config</a>
       {% endif %}
     </div>
   </div>
