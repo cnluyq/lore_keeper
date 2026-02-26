@@ -117,9 +117,6 @@ class CvBaseForm(forms.ModelForm):
     class Meta:
         model = CvBase
         fields = ['record_date', 'title', 'content']
-        widgets = {
-            'record_date': forms.DateInput(attrs={'type': 'date'}),
-        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -128,6 +125,19 @@ class CvBaseForm(forms.ModelForm):
             self.initial['content_editor_type'] = self.instance.content_editor_type or 'markdown'
         else:
             self.initial['content_editor_type'] = 'markdown'
+
+        # Add form-control class to record_date field
+        self.fields['record_date'].widget.attrs.update({
+            'readonly': True,
+            'class': 'form-control',
+            'style': 'width: 180px; height: 50px; padding: 0.5rem 0.75rem; font-size: 1rem;'
+        })
+
+        # Add rounded border to title field
+        self.fields['title'].widget.attrs.update({
+            'class': 'form-control',
+            'style': 'border-radius: 0.5rem; height: 50px; padding: 0.5rem 0.75rem; font-size: 1rem;'
+        })
 
     def clean(self):
         cleaned_data = super().clean()

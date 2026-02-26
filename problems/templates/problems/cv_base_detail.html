@@ -206,10 +206,6 @@ blockquote::before {
           <td>{{ cv_record.title }}</td>
         </tr>
         <tr>
-          <th>Updated</th>
-          <td>{{ cv_record.update_time|date:"Y-m-d H:i" }}</td>
-        </tr>
-        <tr>
           <th>Content</th>
           <td id="content-display">
             <!-- Content will be rendered by JavaScript -->
@@ -227,6 +223,10 @@ blockquote::before {
           </td>
         </tr>
         {% endif %}
+        <tr>
+          <th>Updated</th>
+          <td>{{ cv_record.update_time|date:"Y-m-d H:i" }}</td>
+        </tr>
       </table>
     </div>
   </div>

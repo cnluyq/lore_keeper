@@ -1084,12 +1084,20 @@ def cv_base_edit(request, pk):
     if cv_record.created_by != request.user and not request.user.is_superuser:
         raise PermissionDenied
 
+    action = 'Edit' if cv_record.title or cv_record.content else 'Add'
+
     if request.method == 'POST':
         form = CvBaseForm(request.POST, request.FILES, instance=cv_record)
         if not form.is_valid():
+            config = SiteConfig.get_config()
+            max_file_size_bytes = config.get_max_file_size_bytes()
+            max_file_size_str = f"{config.max_file_size}{config.max_file_size_unit}"
             return render(request, 'problems/cv_base_form.html', {
                 'form': form,
-                'action': 'Edit'
+                'action': action,
+                'cv_record': cv_record,
+                'max_file_size_bytes': max_file_size_bytes,
+                'max_file_size_str': max_file_size_str
             })
 
         try:
@@ -1167,8 +1175,48 @@ def cv_base_edit(request, pk):
             cv_record.title = form.cleaned_data.get('title', cv_record.title)
             cv_record.content = form.cleaned_data.get('content', cv_record.content)
             cv_record.content_editor_type = form.cleaned_data.get('content_editor_type', cv_record.content_editor_type)
-            
-            update_fields = ['title', 'content', 'content_editor_type', 'update_time']
+
+            # Handle record_date update
+            new_record_date_str = request.POST.get('record_date')
+            if new_record_date_str:
+                try:
+                    from datetime import datetime
+                    new_record_date = datetime.strptime(new_record_date_str, '%Y-%m-%d').date()
+
+                    # Check if date is already used by another record
+                    if CvBase.objects.filter(
+                        created_by=request.user,
+                        record_date=new_record_date
+                    ).exclude(pk=cv_record.pk).exists():
+                        messages.error(request, f'A record already exists for {new_record_date}. Please choose a different date.')
+                        config = SiteConfig.get_config()
+                        max_file_size_bytes = config.get_max_file_size_bytes()
+                        max_file_size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+                        return render(request, 'problems/cv_base_form.html', {
+                            'form': form,
+                            'action': action,
+                            'cv_record': cv_record,
+                            'max_file_size_bytes': max_file_size_bytes,
+                            'max_file_size_str': max_file_size_str
+                        })
+
+                    cv_record.record_date = new_record_date
+                    update_fields = ['title', 'content', 'content_editor_type', 'record_date', 'update_time']
+                except ValueError:
+                    messages.error(request, 'Invalid date format')
+                    config = SiteConfig.get_config()
+                    max_file_size_bytes = config.get_max_file_size_bytes()
+                    max_file_size_str = f"{config.max_file_size}{config.max_file_size_unit}"
+                    return render(request, 'problems/cv_base_form.html', {
+                        'form': form,
+                        'action': action,
+                        'cv_record': cv_record,
+                        'max_file_size_bytes': max_file_size_bytes,
+                        'max_file_size_str': max_file_size_str
+                    })
+            else:
+                update_fields = ['title', 'content', 'content_editor_type', 'update_time']
+
             cv_record.save(update_fields=update_fields)
             
             cv_record.refresh_from_db()
@@ -1180,7 +1228,7 @@ def cv_base_edit(request, pk):
             messages.error(request, f'Error saving record: {str(e)}')
             return render(request, 'problems/cv_base_form.html', {
                 'form': form,
-                'action': 'Edit'
+                'action': action
             })
     else:
         form = CvBaseForm(instance=cv_record)
@@ -1190,7 +1238,7 @@ def cv_base_edit(request, pk):
 
     return render(request, 'problems/cv_base_form.html', {
         'form': form,
-        'action': 'Edit',
+        'action': action,
         'cv_record': cv_record,
         'max_file_size_bytes': max_file_size_bytes,
         'max_file_size_str': max_file_size_str
@@ -1364,27 +1412,41 @@ def cv_base_create_by_date(request):
         date_str = body.get('date')
         if not date_str:
             return JsonResponse({'error': 'Date required'}, status=400)
-        
+
         try:
             from datetime import datetime
             record_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         except ValueError:
             return JsonResponse({'error': 'Invalid date format'}, status=400)
-        
+
         # Check if date already exists
-        if CvBase.objects.filter(created_by=request.user, record_date=record_date).exists():
-            return JsonResponse({'error': 'Date already exists'}, status=400)
-        
-        # Create record and redirect to edit
+        existing_record = CvBase.objects.filter(
+            created_by=request.user,
+            record_date=record_date
+        ).first()
+
+        if existing_record:
+            # Return URL to edit the existing record
+            return JsonResponse({
+                'redirect_url': f'/cv-base/edit/{existing_record.id}/',
+                'record_id': existing_record.id,
+                'existing': True
+            })
+
+        # Create new record and redirect to edit
         cv_record = CvBase.objects.create(
             record_date=record_date,
             title='',
             content='',
             created_by=request.user
         )
-        
-        return JsonResponse({'redirect_url': f'/cv-base/edit/{cv_record.id}/'})
-    
+
+        return JsonResponse({
+            'redirect_url': f'/cv-base/edit/{cv_record.id}/',
+            'record_id': cv_record.id,
+            'existing': False
+        })
+
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 def delete_file_from_disk_cvbase(cv_base, field_base, filename):
