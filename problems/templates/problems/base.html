@@ -105,7 +105,6 @@
     <div>
       {% if user.is_authenticated %}
         <span class="text-light me-3">Welcome, {{ user.username }}</span>
-        <a class="btn btn-outline-light btn-sm ms-2" href="{% url 'cv_base_list' %}">CV Base</a>
         <a class="btn btn-outline-light btn-sm" href="{% url 'logout' %}">Logout</a>
       {% else %}
         <a class="btn btn-outline-light btn-sm me-2" href="{% url 'login' %}">Login</a>
