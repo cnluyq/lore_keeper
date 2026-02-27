@@ -469,11 +469,12 @@ window.renderCvBaseContent = renderCvBaseContent;
 window.cvRecordData = cvRecordData;
 
 // Only auto-render when directly accessing the page, not when loaded via fetch
-// When loaded via fetch, window.renderCvBaseContentCalled will be set to true first
+// Check for __preventAutoRender__ flag set by showDetail in cv_base_list.html
 window.renderCvBaseContentCalled = window.renderCvBaseContentCalled || false;
 console.log('[DEBUG] renderCvBaseContentCalled:', window.renderCvBaseContentCalled);
+console.log('[DEBUG] __preventAutoRender__:', window.__preventAutoRender__);
 
-if (!window.renderCvBaseContentCalled) {
+if (!window.renderCvBaseContentCalled && !window.__preventAutoRender__) {
   console.log('[DEBUG] Auto-rendering (direct page access)');
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
@@ -486,6 +487,10 @@ if (!window.renderCvBaseContentCalled) {
       window.renderCvBaseContentCalled = true;
     }, 0);
   }
+} else if (window.__preventAutoRender__) {
+  console.log('[DEBUG] Skipping auto-render due to __preventAutoRender__ flag');
+} else {
+  console.log('[DEBUG] Skipping auto-render due to renderCvBaseContentCalled flag');
 }
 
 // Debug: Log cvRecord data when loaded

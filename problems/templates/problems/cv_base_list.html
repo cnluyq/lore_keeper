@@ -590,8 +590,8 @@ function showDetail(recordId) {
   modal.classList.add('show');
   modal.style.display = 'block';
 
-  // 重置标志，确保每次都能执行渲染
-  window.renderCvBaseContentCalled = false;
+  // 设置标志，防止新脚本自动渲染
+  window.__preventAutoRender__ = true;
 
   fetch(`/cv-base/detail/${recordId}/`)
     .then(response => response.text())
@@ -605,10 +605,12 @@ function showDetail(recordId) {
         console.log('[DEBUG] cardBody found, setting innerHTML');
         modalBody.innerHTML = cardBody.innerHTML;
 
-        // 提取并执行新的脚本，但不自动渲染
-        const scriptElements = doc.querySelectorAll('script');
+        // 先删除旧的全局变量，防止数据污染
+        console.log('[DEBUG] Cleaning up old window.cvRecordData and window.renderCvBaseContent');
+        delete window.cvRecordData;
+        delete window.renderCvBaseContent;
 
-        // 先清理旧的inline脚本（保留外部库脚本）
+        // 清理旧的inline脚本元素
         const oldInlineScripts = Array.from(document.querySelectorAll('script'))
           .filter(s => !s.src && (s.textContent.includes('renderCvBaseContent') || s.textContent.includes('cvRecordData')));
 
@@ -617,14 +619,17 @@ function showDetail(recordId) {
           oldInlineScripts.forEach(s => s.remove());
         }
 
+        // 从新 HTML 中提取并执行脚本
+        const scriptElements = doc.querySelectorAll('script');
         console.log('[DEBUG] Found', scriptElements.length, 'script elements in loaded HTML');
 
-        // 临时禁用自动渲染
-        window.renderCvBaseContentCalled = true;
-
+        // 只执行内联脚本（不执行 marked 和 prism 外部脚本）
         scriptElements.forEach((script, index) => {
-          console.log('[DEBUG] Processing script', index, 'length:', script.textContent.length);
-          if (!script.src || !script.src.includes('marked') && !script.src.includes('prism')) {
+          const isExternal = script.src && script.src.length > 0;
+          const isLibrary = isExternal && (script.src.includes('marked') || script.src.includes('prism') || script.src.includes('clipboard'));
+          
+          if (!isExternal || !isLibrary) {
+            console.log('[DEBUG] Processing script', index, 'length:', script.textContent?.length || 'external');
             const newScript = document.createElement('script');
             newScript.textContent = script.textContent;
             document.body.appendChild(newScript);
@@ -632,11 +637,40 @@ function showDetail(recordId) {
         });
 
         console.log('[DEBUG] All scripts appended');
-        console.log('[DEBUG] cvRecordData now:', window.cvRecordData);
+        console.log('[DEBUG] cvRecordData ID:', window.cvRecordData?.id);
+        console.log('[DEBUG] Expected ID:', recordId);
 
-        // 重新启用并调用渲染
-        window.renderCvBaseContentCalled = false;
+        // 直接从 HTML 中提取并执行 cvRecordData 数据
+        const scriptTexts = [];
+        scriptElements.forEach(script => {
+          if (!script.src || (!script.src.includes('marked') && !script.src.includes('prism') && !script.src.includes('clipboard'))) {
+            scriptTexts.push(script.textContent);
+          }
+        });
 
+        // 尝试直接执行脚本来设置 cvRecordData
+        try {
+          const combinedScript = scriptTexts.join('\\n');
+          if (combinedScript.includes('cvRecordData = {')) {
+            const match = combinedScript.match(/const cvRecordData = \{[\s\S]*?\};/);
+            if (match) {
+              eval(match[0] + ' window.cvRecordData = cvRecordData;');
+              console.log('[DEBUG] Manually set cvRecordData from script, ID:', window.cvRecordData?.id);
+            }
+          }
+        } catch (e) {
+          console.error('[DEBUG] Error manually extracting cvRecordData:', e.message);
+        }
+
+        console.log('[DEBUG] cvRecordData ID after manual extraction:', window.cvRecordData?.id);
+
+        // 验证 cvRecordData 是否正确更新
+        if (!window.cvRecordData || window.cvRecordData.id !== recordId) {
+          console.error('[ERROR] cvRecordData not properly updated!');
+          console.error('[DEBUG] Got ID:', window.cvRecordData?.id, 'Expected:', recordId);
+        }
+
+        // 手动调用渲染函数
         setTimeout(() => {
           const contentCell = document.getElementById('content-cell');
           if (contentCell) {
@@ -645,7 +679,6 @@ function showDetail(recordId) {
 
           if (typeof window.renderCvBaseContent === 'function' && window.cvRecordData) {
             console.log('[DEBUG] Calling renderCvBaseContent with ID:', window.cvRecordData.id);
-            window.renderCvBaseContentCalled = true;
             window.renderCvBaseContent();
           } else {
             console.error('[ERROR] renderCvBaseContent function or cvRecordData not available!');
@@ -656,15 +689,20 @@ function showDetail(recordId) {
           if (typeof Prism !== 'undefined') {
             Prism.highlightAllUnder(modalBody);
           }
+          
+          // 清理临时标志
+          delete window.__preventAutoRender__;
         }, 200);
       } else {
         console.error('[DEBUG] cardBody not found!');
         modalBody.innerHTML = '<p class="text-danger">Failed to load content</p>';
+        delete window.__preventAutoRender__;
       }
     })
     .catch(error => {
       console.error('[DEBUG] Error loading detail:', error);
       modalBody.innerHTML = '<p class="text-danger">Error loading content</p>';
+      delete window.__preventAutoRender__;
     });
 }
 
