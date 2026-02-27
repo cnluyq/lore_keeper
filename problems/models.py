@@ -219,6 +219,7 @@ class SiteConfig(models.Model):
 
 
 import os
+import re
 import json
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
@@ -266,6 +267,35 @@ def auto_delete_files_on_problem_delete(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=CvBase)
 def auto_delete_files_on_cvbase_delete(sender, instance, **kwargs):
+    # Delete images referenced in markdown content from upload_images directory
+    if instance.content and instance.content_editor_type == 'markdown':
+        # Extract image paths from markdown content
+        # Match both markdown image syntax: ![alt](path) and HTML img tags: <img src="path">
+        image_pattern = r'!\[.*?\]\(([^)]+)\)|<img[^>]+src=["\']([^"\']+)["\']'
+        matches = re.findall(image_pattern, instance.content)
+        
+        for match in matches:
+            image_path = match[0] if match[0] else match[1]
+            if image_path.startswith('/uploads/upload_images/'):
+                filename = os.path.basename(image_path)
+                image_file_path = os.path.join(settings.MEDIA_ROOT, 'upload_images', filename)
+                
+                if os.path.isfile(image_file_path):
+                    # Check if the image is referenced by other records
+                    image_ref_pattern = r'!\[.*?\]\(/uploads/upload_images/' + re.escape(filename) + r'\)|<img[^>]+src=["\']/uploads/upload_images/' + re.escape(filename) + r'["\']'
+                    other_records_exist = sender.objects.exclude(
+                        id=instance.id
+                    ).filter(
+                        content_editor_type='markdown',
+                        content__regex=image_ref_pattern
+                    ).exists()
+                    
+                    if not other_records_exist:
+                        try:
+                            os.remove(image_file_path)
+                        except Exception as e:
+                            print(f'Failed to delete image {image_file_path}: {e}')
+    
     # Delete all files in the cvbase's directory structure: uploads/cv_base/<id>/content/
     if instance.id:
         cv_base_dir = os.path.join(settings.MEDIA_ROOT, 'cv_base', str(instance.id))
