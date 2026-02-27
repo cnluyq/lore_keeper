@@ -499,6 +499,14 @@ function closeDateModal() {
   modal.style.display = 'none';
 }
 
+// Close date modal when clicking outside
+document.addEventListener('click', function(event) {
+  const modal = document.getElementById('dateModal');
+  if (event.target === modal) {
+    closeDateModal();
+  }
+});
+
 function loadCalendarData(year, month) {
   fetch(`/cv-base/calendar-days/?year=${year}&month=${month}`)
     .then(response => response.json())
@@ -521,14 +529,18 @@ function renderDateCalendar() {
   const daysContainer = document.getElementById('dateModalDays');
   daysContainer.innerHTML = '';
 
+  const recordDateInput = document.querySelector('[name="record_date"]');
+  const currentDateStr = recordDateInput.value;
+
+  // Get today's date (set to midnight for comparison)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   for (let i = 0; i < firstDay; i++) {
     const emptyCell = document.createElement('div');
     emptyCell.className = 'calendar-day';
     daysContainer.appendChild(emptyCell);
   }
-
-  const recordDateInput = document.querySelector('[name="record_date"]');
-  const currentDateStr = recordDateInput.value;
 
   for (let day = 1; day <= daysInMonth; day++) {
     const dayCell = document.createElement('div');
@@ -537,13 +549,22 @@ function renderDateCalendar() {
 
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
+    const dateToCheck = new Date(year, month, day);
+    dateToCheck.setHours(0, 0, 0, 0);
+
     if (dateStr === currentDateStr) {
       dayCell.classList.add('selected');
     }
 
+    // Enable click if it's the current selected date AND it's not in the future
+    // OR if it's a different date that's not already used AND not in the future
     if (dateStr === currentDateStr) {
-      dayCell.addEventListener('click', () => selectDate(year, month, day));
-    } else if (existingDates.includes(day)) {
+      if (dateToCheck <= today) {
+        dayCell.addEventListener('click', () => selectDate(year, month, day));
+      } else {
+        dayCell.classList.add('disabled');
+      }
+    } else if (existingDates.includes(day) || dateToCheck > today) {
       dayCell.classList.add('disabled');
     } else {
       dayCell.addEventListener('click', () => selectDate(year, month, day));
@@ -594,11 +615,7 @@ function getCookie(name) {
 <div class="modal fade" id="dateModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-header bg-gradient-nav">
-        <h5 class="modal-title text-white">Select Date</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="closeDateModal()"></button>
-      </div>
-      <div class="modal-body p-0">
+      <div class="modal-body p-3">
         <div class="calendar-modal">
           <div class="calendar-header">
             <button class="calendar-nav" onclick="changeDateModalMonth(-1)">

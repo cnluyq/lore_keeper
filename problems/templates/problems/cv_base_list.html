@@ -327,11 +327,7 @@
 <div class="modal fade" id="calendarModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-header bg-gradient-nav">
-        <h5 class="modal-title text-white">Select Date</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body p-0">
+      <div class="modal-body p-3">
         <div class="calendar-modal">
           <div class="calendar-header">
             <button class="calendar-nav" onclick="changeMonth(-1)">
@@ -390,6 +386,10 @@ function renderCalendar() {
   const daysContainer = document.getElementById('calendarDays');
   daysContainer.innerHTML = '';
 
+  // Get today's date (set to midnight for comparison)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   // Add empty cells for days before the first day of the month
   for (let i = 0; i < firstDay; i++) {
     const emptyCell = document.createElement('div');
@@ -403,7 +403,11 @@ function renderCalendar() {
     dayCell.className = 'calendar-day';
     dayCell.textContent = day;
 
-    if (existingDates.includes(day)) {
+    const dateToCheck = new Date(year, month, day);
+    dateToCheck.setHours(0, 0, 0, 0);
+
+    // Disable if date already has a record OR if date is in the future
+    if (existingDates.includes(day) || dateToCheck > today) {
       dayCell.classList.add('disabled');
     } else {
       dayCell.addEventListener('click', () => selectDate(year, month, day));
