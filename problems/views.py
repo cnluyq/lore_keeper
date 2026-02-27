@@ -869,6 +869,9 @@ def _scan_disk_upload_images():
 # 工具：汇总数据库 uploaded_images 字段里所有文件
 def _scan_db_referenced_images():
     referenced = set()
+    import re
+    
+    # 扫描 Problem 模型的 uploaded_images 字段
     for images_json in Problem.objects.exclude(uploaded_images__isnull=True).values_list('uploaded_images', flat=True):
         try:
             images = json.loads(images_json)
@@ -877,6 +880,22 @@ def _scan_db_referenced_images():
                 referenced.update(f"upload_images/{name}" for name in images)
         except Exception:
             continue
+    
+    # 扫描 CvBase 模型的 content 字段中的图片引用
+    cv_base_content_pattern = r'!\[.*?\]\(/uploads/upload_images/([^)]+)\)|<img[^>]+src=["\']/uploads/upload_images/([^"\']+)["\']'
+    
+    for record in CvBase.objects.filter(content_editor_type='markdown').exclude(content__isnull=True).exclude(content=''):
+        content = record.content
+        if content:
+            matches = re.findall(cv_base_content_pattern, content)
+            for match in matches:
+                # match 是一个元组 (markdown_img_filename, html_img_filename)
+                # 其中一个为空，另一个有值
+                filename = match[0] if match[0] else match[1]
+                if filename:
+                    referenced.add(filename)
+                    referenced.add(f"upload_images/{filename}")
+    
     return referenced
 
 def image_size(size_bytes):

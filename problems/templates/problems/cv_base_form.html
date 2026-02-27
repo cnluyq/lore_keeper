@@ -615,8 +615,8 @@ function getCookie(name) {
 <div class="modal fade" id="dateModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-body p-3">
-        <div class="calendar-modal">
+  <div class="modal-body p-0">
+    <div class="calendar-modal">
           <div class="calendar-header">
             <button class="calendar-nav" onclick="changeDateModalMonth(-1)">
               <i class="bi bi-chevron-left"></i>
@@ -643,29 +643,36 @@ function getCookie(name) {
 </div>
 
 <style>
-.calendar-modal {
-  position: relative;
-  max-width: 400px;
-  margin: 0 auto;
+#dateModal .modal-content {
+  border-radius: 1rem;
+  overflow: hidden;
 }
 
-.calendar-header {
+#dateModal .calendar-modal {
+  margin: 0;
+  padding: 0;
+  background-color: white;
+  border-radius: 1rem;
+}
+
+#dateModal .calendar-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 1rem;
+  border-radius: 1rem 1rem 0 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.calendar-grid {
+#dateModal .calendar-grid {
   padding: 1rem;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 0.25rem;
 }
 
-.calendar-day-label {
+#dateModal .calendar-day-label {
   text-align: center;
   font-weight: 600;
   color: #6c757d;
@@ -673,7 +680,7 @@ function getCookie(name) {
   font-size: 0.875rem;
 }
 
-.calendar-day {
+#dateModal .calendar-day {
   text-align: center;
   padding: 0.5rem;
   cursor: pointer;
@@ -682,21 +689,21 @@ function getCookie(name) {
   font-size: 0.9rem;
 }
 
-.calendar-day:hover:not(.disabled) {
+#dateModal .calendar-day:hover:not(.disabled) {
   background-color: #e9ecef;
 }
 
-.calendar-day.disabled {
+#dateModal .calendar-day.disabled {
   color: #adb5bd;
   cursor: not-allowed;
 }
 
-.calendar-day.selected {
+#dateModal .calendar-day.selected {
   background-color: #0d6efd;
   color: white;
 }
 
-.calendar-nav {
+#dateModal .calendar-nav {
   background: none;
   border: none;
   color: white;
@@ -705,12 +712,16 @@ function getCookie(name) {
   padding: 0 0.5rem;
 }
 
-.calendar-nav:hover {
+#dateModal .calendar-nav:hover {
   opacity: 0.8;
 }
 
-.calendar-title {
+#dateModal .calendar-title {
   font-weight: 600;
+}
+
+#dateModal .modal-dialog {
+  max-width: 450px;
 }
 </style>
 {% endblock %}
