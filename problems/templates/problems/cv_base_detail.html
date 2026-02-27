@@ -207,10 +207,6 @@ blockquote::before {
           <th>Content</th>
           <td id="content-display">
             <div id="content-cell" class="break-all">Loading...</div>
-            <div id="debug-info" style="margin-top: 10px; padding: 10px; background-color: #f0f0f0; font-size: 12px;">
-              <strong>Debug Info:</strong><br>
-              <span id="debug-status">Initializing...</span>
-            </div>
           </td>
         </tr>
         {% if cv_record.get_content_files %}
@@ -285,11 +281,7 @@ function addCopyListeners() {
 }
 
 function renderMarkdown(src) {
-  console.log('[DEBUG] renderMarkdown called with src type:', typeof src);
-  console.log('[DEBUG] src preview:', src.substring(0, 100));
-
   let html = marked.parse(src);
-  console.log('[DEBUG] marked.parse result preview:', html.substring(0, 200));
 
   html = html.replace(
     /<pre><code(\s+class="[^"]*")?>([\s\S]*?)<\/code><\/pre>/g,
@@ -330,41 +322,28 @@ function renderMarkdown(src) {
 }
 
 function preserveText(text, editorType = 'plain') {
-  console.log('[DEBUG] preserveText called with editorType:', editorType);
-  console.log('[DEBUG] text type:', typeof text);
-  console.log('[DEBUG] text preview:', text ? text.substring(0, 100) : 'null/empty');
-
   if (!text) return '-';
 
-  console.log('[DEBUG] Calling unescapeHtml on text...');
   const unescapedText = unescapeHtml(text);
-  console.log('[DEBUG] Unescaped text preview:', unescapedText.substring(0, 100));
 
   if (editorType === 'markdown') {
-    console.log('[DEBUG] Editor type is markdown, calling renderMarkdown');
     const html = renderMarkdown(unescapedText);
-    console.log('[DEBUG] Rendered HTML preview:', html.substring(0, 200));
     setTimeout(() => Prism.highlightAll(), 0);
     return html;
   } else {
-    console.log('[DEBUG] Editor type is plain, wrapping in div');
     return `<div style="white-space: pre-wrap; font-family: inherit;">${text}</div>`;
   }
 }
 
 function unescapeHtml(str) {
-  console.log('[DEBUG] unescapeHtml called with type:', typeof str);
   if (typeof str !== 'string') {
-    console.log('[DEBUG] Input is not a string, returning as-is');
     return str;
   }
   try {
     const doc = new DOMParser().parseFromString(str, 'text/html');
     const result = doc.documentElement.textContent;
-    console.log('[DEBUG] DOMParser result preview:', result.substring(0, 100));
     return result;
   } catch (e) {
-    console.log('[DEBUG] DOMParser failed, using textarea fallback');
     const textarea = document.createElement('textarea');
     textarea.innerHTML = str;
     return textarea.value;
@@ -384,14 +363,9 @@ const cvRecordData = {
 window.cvRecordData = cvRecordData;
 
 function renderCvBaseContent() {
-  console.log('[DEBUG] renderCvBaseContent called');
-  console.log('[DEBUG] Using window.cvRecordData ID:', window.cvRecordData ? window.cvRecordData.id : 'undefined');
-
-  // 使用全局对象，确保每次都使用最新的数据
   const data = window.cvRecordData;
 
   if (!data) {
-    console.error('[ERROR] window.cvRecordData is not defined!');
     const cell = document.getElementById('content-cell');
     if (cell) {
       cell.innerHTML = '<p style="color: red;">Data not available!</p>';
@@ -399,70 +373,28 @@ function renderCvBaseContent() {
     return;
   }
 
-  console.log('[DEBUG] Record ID:', data.id);
-  console.log('[DEBUG] Title:', data.title);
-  console.log('[DEBUG] Content editor type:', data.content_editor_type);
-  console.log('[DEBUG] Content preview:', data.content.substring(0, 100));
-
-  const debugStatus = document.getElementById('debug-info');
-  if (debugStatus) {
-    debugStatus.innerHTML = 'renderCvBaseContent called...<br>';
-    debugStatus.innerHTML += 'Record ID: ' + data.id + '<br>';
-    debugStatus.innerHTML += 'Record Title: ' + data.title + '<br>';
-    debugStatus.innerHTML += 'typeof marked: ' + typeof marked + '<br>';
-    debugStatus.innerHTML += 'typeof Prism: ' + typeof Prism + '<br>';
-  }
-
-  console.log('[DEBUG] typeof marked:', typeof marked);
-  console.log('[DEBUG] typeof Prism:', typeof Prism);
-
   const cell = document.getElementById('content-cell');
-  console.log('[DEBUG] cell element:', cell);
 
   if (!cell) {
-    console.error('[DEBUG] content-cell element not found!');
-    if (debugStatus) {
-      debugStatus.innerHTML += '<span style="color: red;">ERROR: content-cell element not found!</span>';
-    }
     return;
   }
 
   if (typeof marked === 'undefined') {
-    console.error('[ERROR] marked.js is not loaded!');
     cell.innerHTML = '<p style="color: red;">marked.js library not loaded!</p>';
-    if (debugStatus) {
-      debugStatus.innerHTML += '<span style="color: red;">ERROR: marked.js is not loaded!</span>';
-    }
     return;
   }
 
   const text = data.content;
   const editorType = data.content_editor_type || 'plain';
-  console.log('[DEBUG] Calling preserveText with editorType:', editorType);
-
-  if (debugStatus) {
-    debugStatus.innerHTML += 'editorType: ' + editorType + '<br>';
-    debugStatus.innerHTML += 'Content length: ' + (text ? text.length : 0) + '<br>';
-    debugStatus.innerHTML += 'Content preview: ' + (text ? text.substring(0, 50).replace(/\n/g, '\\n') : '(empty)') + '<br>';
-  }
 
   const html = preserveText(text, editorType);
-  console.log('[DEBUG] Generated HTML preview:', html.substring(0, 200));
 
   cell.innerHTML = html;
-  console.log('[DEBUG] cell.innerHTML set, new innerHTML length:', cell.innerHTML.length);
-
-  if (debugStatus) {
-    debugStatus.innerHTML += 'Rendered! HTML length: ' + html.length + '<br>';
-  }
 
   setTimeout(() => {
     addCopyListeners();
   }, 100);
 }
-
-console.log('[DEBUG] Script loaded, readyState:', document.readyState);
-console.log('[DEBUG] cvRecordData defined:', typeof cvRecordData !== 'undefined');
 
 // Export function for external use (when loaded via fetch)
 window.renderCvBaseContent = renderCvBaseContent;
@@ -471,11 +403,8 @@ window.cvRecordData = cvRecordData;
 // Only auto-render when directly accessing the page, not when loaded via fetch
 // Check for __preventAutoRender__ flag set by showDetail in cv_base_list.html
 window.renderCvBaseContentCalled = window.renderCvBaseContentCalled || false;
-console.log('[DEBUG] renderCvBaseContentCalled:', window.renderCvBaseContentCalled);
-console.log('[DEBUG] __preventAutoRender__:', window.__preventAutoRender__);
 
 if (!window.renderCvBaseContentCalled && !window.__preventAutoRender__) {
-  console.log('[DEBUG] Auto-rendering (direct page access)');
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       renderCvBaseContent();
@@ -487,14 +416,7 @@ if (!window.renderCvBaseContentCalled && !window.__preventAutoRender__) {
       window.renderCvBaseContentCalled = true;
     }, 0);
   }
-} else if (window.__preventAutoRender__) {
-  console.log('[DEBUG] Skipping auto-render due to __preventAutoRender__ flag');
-} else {
-  console.log('[DEBUG] Skipping auto-render due to renderCvBaseContentCalled flag');
 }
-
-// Debug: Log cvRecord data when loaded
-console.log('[DEBUG] cvRecord loaded, ID:', cvRecordData.id, 'Title:', cvRecordData.title);
 
 </script>
 {% endblock %}
