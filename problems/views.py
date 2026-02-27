@@ -1385,6 +1385,19 @@ def cv_base_delete(request, pk):
     return redirect('cv_base_list')
 
 @login_required
+def cv_base_cancel(request, pk):
+    """Handle cancel edit - delete empty add records"""
+    cv_record = get_object_or_404(CvBase, pk=pk)
+    if cv_record.created_by != request.user and not request.user.is_superuser:
+        raise PermissionDenied
+
+    # Delete if it's an empty record (created by Add New but not saved)
+    if not cv_record.title and not cv_record.content:
+        cv_record.delete()
+
+    return redirect('cv_base_list')
+
+@login_required
 def cv_base_detail(request, pk):
     cv_record = get_object_or_404(CvBase, pk=pk)
     if cv_record.created_by != request.user and not request.user.is_superuser:

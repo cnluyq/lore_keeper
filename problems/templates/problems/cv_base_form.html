@@ -160,9 +160,15 @@
           <button type="submit" class="btn btn-primary flex-grow-1">
             <i class="bi bi-save"></i> Save
           </button>
-          <a href="{% url 'cv_base_list' %}" class="btn btn-secondary">
-            <i class="bi bi-x-circle"></i> Cancel
-          </a>
+          {% if cv_record.id %}
+            <a href="{% url 'cv_base_cancel' cv_record.id %}" class="btn btn-secondary">
+              <i class="bi bi-x-circle"></i> Cancel
+            </a>
+          {% else %}
+            <a href="{% url 'cv_base_list' %}" class="btn btn-secondary">
+              <i class="bi bi-x-circle"></i> Cancel
+            </a>
+          {% endif %}
         </div>
       </div>
       </form>
