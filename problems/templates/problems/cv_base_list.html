@@ -30,7 +30,6 @@
 
   .year-group {
     background-color: #f8f9fa;
-    border-left: 4px solid #0d6efd;
     margin-bottom: 1.5rem;
   }
 
@@ -50,11 +49,18 @@
   }
 
   .year-header .toggle-icon {
-    transition: transform 0.3s;
+    display: inline-block;
+    transition: transform 0.3s ease;
+    margin-right: 0.5rem;
+    color: white;
   }
 
   .year-header.collapsed .toggle-icon {
     transform: rotate(-90deg);
+  }
+
+  .year-header:not(.collapsed) .toggle-icon {
+    transform: rotate(0deg);
   }
 
   .year-content {
@@ -69,7 +75,7 @@
   }
 
   .month-header {
-    background-color: #e9ecef;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     color: #495057;
     padding: 0.5rem 1rem;
     font-size: 1.1rem;
@@ -81,16 +87,23 @@
   }
 
   .month-header:hover {
-    background-color: #dee2e6;
+    background: linear-gradient(135deg, #e8ecf1 0%, #b8c6d9 100%);
   }
 
   .month-header .toggle-icon {
-    transition: transform 0.3s;
+    display: inline-block;
+    transition: transform 0.3s ease;
     font-size: 0.9rem;
+    margin-right: 0.5rem;
+    color: #495057;
   }
 
   .month-header.collapsed .toggle-icon {
     transform: rotate(-90deg);
+  }
+
+  .month-header:not(.collapsed) .toggle-icon {
+    transform: rotate(0deg);
   }
 
   .record-item {
@@ -496,41 +509,36 @@ function loadCollapseStates() {
   try {
     const state = JSON.parse(localStorage.getItem('cv_base_collapse_state') || '{}');
     
-    // Default: set all to expanded
-    document.querySelectorAll('.year-content').forEach(el => el.style.display = 'block');
-    document.querySelectorAll('.year-header').forEach(el => el.classList.remove('collapsed'));
-    document.querySelectorAll('.record-list').forEach(el => el.style.display = 'block');
-    document.querySelectorAll('.month-header').forEach(el => el.classList.remove('collapsed'));
-    
-    // Only apply collapse states that are explicitly set to true
-    // Restore year collapse states
+    // Only restore expanded states (isCollapsed === false)
+    // HTML default is collapsed (display: none, class="collapsed"), so we don't need to handle true states
+    // Restore year expand states
     if (state.year) {
       Object.keys(state.year).forEach(yearKey => {
         const isCollapsed = state.year[yearKey];
-        if (isCollapsed) {
+        if (!isCollapsed) {
           const yearElement = document.querySelector(`.year-group[data-year="${yearKey}"]`);
           if (yearElement) {
             const yearContent = yearElement.querySelector('.year-content');
             const yearHeader = yearElement.querySelector('.year-header');
-            yearContent.style.display = 'none';
-            yearHeader.classList.add('collapsed');
+            yearContent.style.display = 'block';
+            yearHeader.classList.remove('collapsed');
           }
         }
       });
     }
     
-    // Restore month collapse states
+    // Restore month expand states
     if (state.month) {
       Object.keys(state.month).forEach(monthKey => {
         const [year, month] = monthKey.split('-');
         const isCollapsed = state.month[monthKey];
-        if (isCollapsed) {
+        if (!isCollapsed) {
           const monthElement = document.querySelector(`.month-group[data-year="${year}"][data-month="${month}"]`);
           if (monthElement) {
             const recordList = monthElement.querySelector('.record-list');
             const monthHeader = monthElement.querySelector('.month-header');
-            recordList.style.display = 'none';
-            monthHeader.classList.add('collapsed');
+            recordList.style.display = 'block';
+            monthHeader.classList.remove('collapsed');
           }
         }
       });
