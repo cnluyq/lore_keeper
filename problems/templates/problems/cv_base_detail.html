@@ -193,9 +193,7 @@ blockquote::before {
 
   <div class="card custom-card">
     <div class="card-body">
-      <input type="hidden" id="content-editor-type" value="{{ cv_record.content_editor_type }}">
-      <input type="hidden" id="content-raw" value="{{ cv_record.content|escape }}">
-      
+
       <table class="table">
         <tr>
           <th>Record Date</th>
@@ -203,12 +201,16 @@ blockquote::before {
         </tr>
         <tr>
           <th>Title</th>
-          <td>{{ cv_record.title }}</td>
+          <td>{{ cv_record.title|safe }}</td>
         </tr>
         <tr>
           <th>Content</th>
           <td id="content-display">
-            <!-- Content will be rendered by JavaScript -->
+            <div id="content-cell" class="break-all">Loading...</div>
+            <div id="debug-info" style="margin-top: 10px; padding: 10px; background-color: #f0f0f0; font-size: 12px;">
+              <strong>Debug Info:</strong><br>
+              <span id="debug-status">Initializing...</span>
+            </div>
           </td>
         </tr>
         {% if cv_record.get_content_files %}
@@ -244,35 +246,6 @@ marked.setOptions({
   }
 });
 
-function renderMarkdown(src) {
-  let html = marked.parse(src);
-
-  // 代码块加行号和拷贝按钮
-  html = html.replace(
-    /<pre><code(\s+class="[^"]*")?>([\s\S]*?)<\/code><\/pre>/g,
-    (match, className, code) => {
-      const cleanCode = code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-      return `<pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code class="${className || ''}">${cleanCode}</code></pre>`;
-    }
-  );
-
-  // 行内代码：浅灰背景 + 拷贝按钮
-  html = html.replace(/<code(\s+class="[^"]*")?>(.*?)<\/code>/g, (match, className, code) => {
-    const cleanCode = code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    if (className) {
-      return `<code${className} class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${cleanCode}</code>`;
-    } else {
-      return `<code class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${cleanCode}</code>`;
-    }
-  });
-
-  // 表格包一层可滚动 div
-  html = html.replace(/<table>/g, '<div class="table-responsive"><table class="table table-sm table-bordered"><thead class="table-light">');
-  html = html.replace(/<\/table>/g, '</table></div>');
-
-  return html;
-}
-
 function addCopyListeners() {
   document.querySelectorAll('.copy-btn').forEach(button => {
     button.addEventListener('click', function(e) {
@@ -293,7 +266,7 @@ function addCopyListeners() {
         }
 
         try {
-          navigator.clipboard.writeText(codeText).then(() => {
+          clipboard.writeText(codeText).then(() => {
             const originalText = this.textContent;
             this.textContent = 'Copied!';
             setTimeout(() => {
@@ -304,66 +277,219 @@ function addCopyListeners() {
           });
         } catch (err) {
           console.error('Clipboard API not available', err);
+          alert('Your browser does not support the Clipboard API. Please copy the code manually.');
         }
       }
     });
   });
 }
 
-function copyCode(btn) {
-  const codeBlock = btn.parentElement.querySelector('code');
-  const text = codeBlock.textContent.replace('Copy', '');
-  navigator.clipboard.writeText(text).then(() => {
-    const originalText = btn.textContent;
-    btn.textContent = 'Copied!';
-    setTimeout(() => {
-      btn.textContent = originalText;
-    }, 1500);
-  }).catch(err => {
-    console.error('Copy failed:', err);
+function renderMarkdown(src) {
+  console.log('[DEBUG] renderMarkdown called with src type:', typeof src);
+  console.log('[DEBUG] src preview:', src.substring(0, 100));
+
+  let html = marked.parse(src);
+  console.log('[DEBUG] marked.parse result preview:', html.substring(0, 200));
+
+  html = html.replace(
+    /<pre><code(\s+class="[^"]*")?>([\s\S]*?)<\/code><\/pre>/g,
+    (match, className, code) => {
+      if (className) {
+        return `
+          <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code${className}>${code}</code></pre>
+        `;
+      } else {
+        return `
+          <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code>${code}</code></pre>
+        `;
+      }
+    }
+  );
+
+  html = html.replace(/<code(\s+class="[^"]*")?>(.*?)<\/code>/g, (match, className, code) => {
+    if (className) {
+      return `
+        <code${className} class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
+      `;
+    } else {
+      return `
+        <code class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
+      `;
+    }
   });
+
+  html = html.replace(/<table>/g, '<div class="table-responsive"><table class="table table-sm table-bordered"><thead class="table-light">');
+  html = html.replace(/<\/table>/g, '</table></div>');
+
+  setTimeout(() => {
+    Prism.highlightAll();
+    addCopyListeners();
+  }, 0);
+
+  return html;
+}
+
+function preserveText(text, editorType = 'plain') {
+  console.log('[DEBUG] preserveText called with editorType:', editorType);
+  console.log('[DEBUG] text type:', typeof text);
+  console.log('[DEBUG] text preview:', text ? text.substring(0, 100) : 'null/empty');
+
+  if (!text) return '-';
+
+  console.log('[DEBUG] Calling unescapeHtml on text...');
+  const unescapedText = unescapeHtml(text);
+  console.log('[DEBUG] Unescaped text preview:', unescapedText.substring(0, 100));
+
+  if (editorType === 'markdown') {
+    console.log('[DEBUG] Editor type is markdown, calling renderMarkdown');
+    const html = renderMarkdown(unescapedText);
+    console.log('[DEBUG] Rendered HTML preview:', html.substring(0, 200));
+    setTimeout(() => Prism.highlightAll(), 0);
+    return html;
+  } else {
+    console.log('[DEBUG] Editor type is plain, wrapping in div');
+    return `<div style="white-space: pre-wrap; font-family: inherit;">${text}</div>`;
+  }
 }
 
 function unescapeHtml(str) {
-  if (typeof str !== 'string') return str;
+  console.log('[DEBUG] unescapeHtml called with type:', typeof str);
+  if (typeof str !== 'string') {
+    console.log('[DEBUG] Input is not a string, returning as-is');
+    return str;
+  }
   try {
     const doc = new DOMParser().parseFromString(str, 'text/html');
-    return doc.documentElement.textContent;
+    const result = doc.documentElement.textContent;
+    console.log('[DEBUG] DOMParser result preview:', result.substring(0, 100));
+    return result;
   } catch (e) {
+    console.log('[DEBUG] DOMParser failed, using textarea fallback');
     const textarea = document.createElement('textarea');
     textarea.innerHTML = str;
     return textarea.value;
   }
 }
 
-// 导出渲染函数供外部调用
-window.renderCvBaseContent = function() {
-  const editorType = document.getElementById('content-editor-type').value;
-  const rawContent = document.getElementById('content-raw').value;
-  const contentDisplay = document.getElementById('content-display');
+const cvRecordData = {
+  id: {{ cv_record.id }},
+  record_date: '{{ cv_record.record_date|date:"Y-m-d" }}',
+  title: '{{ cv_record.title|escapejs }}',
+  content: '{{ cv_record.content|escapejs }}',
+  content_editor_type: '{{ cv_record.content_editor_type|default:"plain"|escapejs }}',
+  update_time: '{{ cv_record.update_time|date:"Y-m-d H:i" }}'
+};
 
-  if (!rawContent.trim()) {
-    contentDisplay.innerHTML = '<p class="text-muted">No content</p>';
+// 立即导出到 window，确保 renderCvBaseContent 能访问
+window.cvRecordData = cvRecordData;
+
+function renderCvBaseContent() {
+  console.log('[DEBUG] renderCvBaseContent called');
+  console.log('[DEBUG] Using window.cvRecordData ID:', window.cvRecordData ? window.cvRecordData.id : 'undefined');
+
+  // 使用全局对象，确保每次都使用最新的数据
+  const data = window.cvRecordData;
+
+  if (!data) {
+    console.error('[ERROR] window.cvRecordData is not defined!');
+    const cell = document.getElementById('content-cell');
+    if (cell) {
+      cell.innerHTML = '<p style="color: red;">Data not available!</p>';
+    }
     return;
   }
 
-  const unescapedContent = unescapeHtml(rawContent);
+  console.log('[DEBUG] Record ID:', data.id);
+  console.log('[DEBUG] Title:', data.title);
+  console.log('[DEBUG] Content editor type:', data.content_editor_type);
+  console.log('[DEBUG] Content preview:', data.content.substring(0, 100));
 
-  if (editorType === 'markdown') {
-    contentDisplay.innerHTML = renderMarkdown(unescapedContent);
-  } else {
-    const escaped = unescapedContent.replace(/&/g, '&amp;')
-                                   .replace(/</g, '&lt;')
-                                   .replace(/>/g, '&gt;');
-    contentDisplay.innerHTML = `<div style="white-space: pre-wrap;">${escaped}</div>`;
+  const debugStatus = document.getElementById('debug-info');
+  if (debugStatus) {
+    debugStatus.innerHTML = 'renderCvBaseContent called...<br>';
+    debugStatus.innerHTML += 'Record ID: ' + data.id + '<br>';
+    debugStatus.innerHTML += 'Record Title: ' + data.title + '<br>';
+    debugStatus.innerHTML += 'typeof marked: ' + typeof marked + '<br>';
+    debugStatus.innerHTML += 'typeof Prism: ' + typeof Prism + '<br>';
   }
 
-  // 重新绑定复制按钮事件
-  addCopyListeners();
-};
+  console.log('[DEBUG] typeof marked:', typeof marked);
+  console.log('[DEBUG] typeof Prism:', typeof Prism);
 
-document.addEventListener('DOMContentLoaded', function() {
-  window.renderCvBaseContent();
-});
+  const cell = document.getElementById('content-cell');
+  console.log('[DEBUG] cell element:', cell);
+
+  if (!cell) {
+    console.error('[DEBUG] content-cell element not found!');
+    if (debugStatus) {
+      debugStatus.innerHTML += '<span style="color: red;">ERROR: content-cell element not found!</span>';
+    }
+    return;
+  }
+
+  if (typeof marked === 'undefined') {
+    console.error('[ERROR] marked.js is not loaded!');
+    cell.innerHTML = '<p style="color: red;">marked.js library not loaded!</p>';
+    if (debugStatus) {
+      debugStatus.innerHTML += '<span style="color: red;">ERROR: marked.js is not loaded!</span>';
+    }
+    return;
+  }
+
+  const text = data.content;
+  const editorType = data.content_editor_type || 'plain';
+  console.log('[DEBUG] Calling preserveText with editorType:', editorType);
+
+  if (debugStatus) {
+    debugStatus.innerHTML += 'editorType: ' + editorType + '<br>';
+    debugStatus.innerHTML += 'Content length: ' + (text ? text.length : 0) + '<br>';
+    debugStatus.innerHTML += 'Content preview: ' + (text ? text.substring(0, 50).replace(/\n/g, '\\n') : '(empty)') + '<br>';
+  }
+
+  const html = preserveText(text, editorType);
+  console.log('[DEBUG] Generated HTML preview:', html.substring(0, 200));
+
+  cell.innerHTML = html;
+  console.log('[DEBUG] cell.innerHTML set, new innerHTML length:', cell.innerHTML.length);
+
+  if (debugStatus) {
+    debugStatus.innerHTML += 'Rendered! HTML length: ' + html.length + '<br>';
+  }
+
+  setTimeout(() => {
+    addCopyListeners();
+  }, 100);
+}
+
+console.log('[DEBUG] Script loaded, readyState:', document.readyState);
+console.log('[DEBUG] cvRecordData defined:', typeof cvRecordData !== 'undefined');
+
+// Export function for external use (when loaded via fetch)
+window.renderCvBaseContent = renderCvBaseContent;
+window.cvRecordData = cvRecordData;
+
+// Only auto-render when directly accessing the page, not when loaded via fetch
+// When loaded via fetch, window.renderCvBaseContentCalled will be set to true first
+window.renderCvBaseContentCalled = window.renderCvBaseContentCalled || false;
+console.log('[DEBUG] renderCvBaseContentCalled:', window.renderCvBaseContentCalled);
+
+if (!window.renderCvBaseContentCalled) {
+  console.log('[DEBUG] Auto-rendering (direct page access)');
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      renderCvBaseContent();
+      window.renderCvBaseContentCalled = true;
+    });
+  } else {
+    setTimeout(() => {
+      renderCvBaseContent();
+      window.renderCvBaseContentCalled = true;
+    }, 0);
+  }
+}
+
+// Debug: Log cvRecord data when loaded
+console.log('[DEBUG] cvRecord loaded, ID:', cvRecordData.id, 'Title:', cvRecordData.title);
+
 </script>
 {% endblock %}

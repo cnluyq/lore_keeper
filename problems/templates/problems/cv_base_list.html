@@ -3,8 +3,10 @@
 {% block content %}
 <!-- Load PrismJS for code highlighting -->
 <link href="{% static 'libs/prismjs/themes/prism.min.css' %}" rel="stylesheet"/>
-<script src="{% static 'libs/prismjs/prism.min.js' %}"></script>
-<script src="{% static 'libs/prismjs/plugins/autoloader/prism-autoloader.min.js' %}"></script>
+<script src="{% static 'libs/prismjs/prism.min.js' %}" defer></script>
+<script src="{% static 'libs/prismjs/plugins/autoloader/prism-autoloader.min.js' %}" defer></script>
+<script src="{% static 'libs/marked/marked.min.js' %}"></script>
+<script src="{% static 'libs/clipboard/clipboard-polyfill.min.js' %}"></script>
 
 <style>
   .container {
@@ -569,18 +571,6 @@ function getCookie(name) {
   if (parts.length === 2) return parts.pop().split(';').shift();
 }
 
-function unescapeHtml(str) {
-  if (typeof str !== 'string') return str;
-  try {
-    const doc = new DOMParser().parseFromString(str, 'text/html');
-    return doc.documentElement.textContent;
-  } catch (e) {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = str;
-    return textarea.value;
-  }
-}
-
 // Close modal when clicking outside
 window.onclick = function(event) {
   const modal = document.getElementById('calendarModal');
@@ -591,154 +581,91 @@ window.onclick = function(event) {
 }
 
 function showDetail(recordId) {
+  console.log('[DEBUG] showDetail called with recordId:', recordId);
   const modal = document.getElementById('detailModal');
   const modalBody = document.getElementById('detailModalBody');
-  
-  // Show loading state
+
   modalBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border" role="status"></div><p class="mt-3">Loading...</p></div>';
-  
-  // Show modal
+
   modal.classList.add('show');
   modal.style.display = 'block';
-  
-  // Fetch detail content
+
+  // 重置标志，确保每次都能执行渲染
+  window.renderCvBaseContentCalled = false;
+
   fetch(`/cv-base/detail/${recordId}/`)
     .then(response => response.text())
     .then(html => {
-      // Extract the card body content from the response
+      console.log('[DEBUG] Fetch response received, length:', html.length);
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
+
       const cardBody = doc.querySelector('.card-body');
-      
       if (cardBody) {
+        console.log('[DEBUG] cardBody found, setting innerHTML');
         modalBody.innerHTML = cardBody.innerHTML;
-        
-        // Render Markdown content manually
-        renderMarkdownModalContent(modalBody);
-        
-        // Apply Prism highlighting
-        if (typeof Prism !== 'undefined') {
-          Prism.highlightAllUnder(modalBody);
+
+        // 提取并执行新的脚本，但不自动渲染
+        const scriptElements = doc.querySelectorAll('script');
+
+        // 先清理旧的inline脚本（保留外部库脚本）
+        const oldInlineScripts = Array.from(document.querySelectorAll('script'))
+          .filter(s => !s.src && (s.textContent.includes('renderCvBaseContent') || s.textContent.includes('cvRecordData')));
+
+        if (oldInlineScripts.length > 0) {
+          console.log('[DEBUG] Removing', oldInlineScripts.length, 'old cv_base_detail scripts');
+          oldInlineScripts.forEach(s => s.remove());
         }
+
+        console.log('[DEBUG] Found', scriptElements.length, 'script elements in loaded HTML');
+
+        // 临时禁用自动渲染
+        window.renderCvBaseContentCalled = true;
+
+        scriptElements.forEach((script, index) => {
+          console.log('[DEBUG] Processing script', index, 'length:', script.textContent.length);
+          if (!script.src || !script.src.includes('marked') && !script.src.includes('prism')) {
+            const newScript = document.createElement('script');
+            newScript.textContent = script.textContent;
+            document.body.appendChild(newScript);
+          }
+        });
+
+        console.log('[DEBUG] All scripts appended');
+        console.log('[DEBUG] cvRecordData now:', window.cvRecordData);
+
+        // 重新启用并调用渲染
+        window.renderCvBaseContentCalled = false;
+
+        setTimeout(() => {
+          const contentCell = document.getElementById('content-cell');
+          if (contentCell) {
+            contentCell.innerHTML = 'Loading...';
+          }
+
+          if (typeof window.renderCvBaseContent === 'function' && window.cvRecordData) {
+            console.log('[DEBUG] Calling renderCvBaseContent with ID:', window.cvRecordData.id);
+            window.renderCvBaseContentCalled = true;
+            window.renderCvBaseContent();
+          } else {
+            console.error('[ERROR] renderCvBaseContent function or cvRecordData not available!');
+            console.error('[DEBUG] typeof renderCvBaseContent:', typeof window.renderCvBaseContent);
+            console.error('[DEBUG] cvRecordData:', window.cvRecordData);
+          }
+
+          if (typeof Prism !== 'undefined') {
+            Prism.highlightAllUnder(modalBody);
+          }
+        }, 200);
       } else {
+        console.error('[DEBUG] cardBody not found!');
         modalBody.innerHTML = '<p class="text-danger">Failed to load content</p>';
       }
     })
     .catch(error => {
-      console.error('Error loading detail:', error);
+      console.error('[DEBUG] Error loading detail:', error);
       modalBody.innerHTML = '<p class="text-danger">Error loading content</p>';
     });
-}
-
-function renderMarkdownModalContent(container) {
-  const editorTypeInput = document.getElementById('content-editor-type');
-  const rawContentInput = document.getElementById('content-raw');
-  const contentDisplay = document.getElementById('content-display');
-  
-  if (!editorTypeInput || !rawContentInput || !contentDisplay) {
-    console.warn('Required elements not found for content rendering');
-    return;
-  }
-  
-  const editorType = editorTypeInput.value || 'markdown';
-  const rawContent = rawContentInput.value || '';
-  
-  if (!rawContent.trim()) {
-    contentDisplay.innerHTML = '<p class="text-muted">No content</p>';
-    return;
-  }
-  
-  const unescapedContent = unescapeHtml(rawContent);
-  
-  if (editorType === 'markdown' && typeof marked !== 'undefined') {
-    // Configure marked with Prism
-    if (typeof Prism !== 'undefined') {
-      marked.setOptions({
-        gfm: true,
-        breaks: true,
-        highlight: function (code, lang) {
-          if (lang && Prism.languages[lang]) {
-            return Prism.highlight(code, Prism.languages[lang], lang);
-          }
-          return Prism.highlight(code, Prism.languages.plaintext, 'plaintext');
-        }
-      });
-    }
-    
-    // Render markdown
-    let html = marked.parse(unescapedContent);
-    
-    // Add copy buttons to code blocks
-    html = html.replace(
-      /<pre><code(\s+class="[^"]*")?>([\s\S]*?)<\/code><\/pre>/g,
-      (match, className, code) => {
-        const cleanCode = code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-        return `<pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code${className || ''}>${cleanCode}</code></pre>`;
-      }
-    );
-    
-    // Add copy buttons to inline code
-    html = html.replace(/<code(\s+class="[^"]*")?>(.*?)<\/code>/g, (match, className, code) => {
-      const cleanCode = code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-      if (className) {
-        return `<code${className} class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${cleanCode}</code>`;
-      } else {
-        return `<code class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${cleanCode}</code>`;
-      }
-    });
-    
-    contentDisplay.innerHTML = html;
-  } else {
-    // Plain text mode
-    const escaped = unescapedContent.replace(/&/g, '&amp;')
-                                   .replace(/</g, '&lt;')
-                                   .replace(/>/g, '&gt;');
-    contentDisplay.innerHTML = `<div style="white-space: pre-wrap;">${escaped}</div>`;
-  }
-  
-  // Re-bind copy button events
-  bindCopyButtons(container);
-}
-
-function bindCopyButtons(container) {
-  container.querySelectorAll('.copy-btn').forEach(button => {
-    // Remove existing listener
-    const newBtn = button.cloneNode(true);
-    button.parentNode.replaceChild(newBtn, button);
-    
-    newBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      let codeElement;
-      if (this.parentElement.tagName === 'CODE') {
-        codeElement = this.parentElement;
-      } else if (this.parentElement.tagName === 'PRE') {
-        codeElement = this.nextElementSibling;
-      }
-
-      if (codeElement) {
-        let codeText = codeElement.textContent;
-        if (codeText.includes('Copy')) {
-          codeText = codeText.replace('Copy', '').trim();
-        }
-
-        try {
-          navigator.clipboard.writeText(codeText).then(() => {
-            const originalText = this.textContent;
-            this.textContent = 'Copied!';
-            setTimeout(() => {
-              this.textContent = originalText;
-            }, 1500);
-          }).catch(err => {
-            console.error('Failed to copy text: ', err);
-          });
-        } catch (err) {
-          console.error('Clipboard API not available', err);
-        }
-      }
-    });
-  });
 }
 
 // Load collapse states - execute immediately when DOM is ready

@@ -116,7 +116,7 @@ class SiteConfigForm(forms.ModelForm):
 class CvBaseForm(forms.ModelForm):
     class Meta:
         model = CvBase
-        fields = ['record_date', 'title', 'content']
+        fields = ['record_date', 'title', 'content', 'content_editor_type']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -142,8 +142,13 @@ class CvBaseForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        # 自动转义HTML字符
-        text_fields = ['title', 'content']
+        # 只在编辑器类型为 plain 时才转义HTML字符
+        # markdown 模式下，内容将使用 marked.js 解析，应保持原样
+        content_editor_type = cleaned_data.get('content_editor_type', 'markdown')
+        text_fields = ['title']
+        if content_editor_type == 'plain':
+            text_fields.append('content')
+
         for field_name in text_fields:
             text = cleaned_data.get(field_name, '')
             if text:
