@@ -168,6 +168,20 @@ blockquote::before {
     border-left: 4px solid #ddd;
     color: #666;
 }
+
+/* 确保content字段的内容换行 */
+#content-cell {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    max-width: 100%;
+}
+
+/* 针对特别长的无空格字符串 */
+.break-all {
+    word-break: break-all;
+    overflow-wrap: break-word;
+}
 </style>
 
 <!-- Load required libraries -->

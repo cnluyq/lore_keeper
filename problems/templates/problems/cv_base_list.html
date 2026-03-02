@@ -853,18 +853,38 @@ document.addEventListener('click', function(event) {
 
 <style>
 /* Detail modal styles */
+#detailModal .modal-dialog {
+  max-width: 95vw;
+}
+
 #detailModalBody {
   min-height: 400px;
+  padding: 1rem;
 }
 
 #detailModalBody table {
   width: 100%;
+  max-width: 100%;
+}
+
+#detailModalBody > table {
+  border-spacing: 0;
+  width: 100%;
+}
+
+#detailModalBody tr {
+  border-bottom: 1px solid #dee2e6;
+}
+
+#detailModalBody tr:last-child {
+  border-bottom: none;
 }
 
 #detailModalBody th {
   width: 150px;
   min-width: 150px;
   max-width: 200px;
+  padding: 0.5rem;
   padding-right: 1rem;
   vertical-align: top;
 }
@@ -873,14 +893,41 @@ document.addEventListener('click', function(event) {
   word-break: break-word;
   overflow-wrap: break-word;
   white-space: normal;
-  padding-left: 0.5rem;
+  padding: 0.5rem;
 }
 
 #detailModalBody pre {
   white-space: pre-wrap;
   word-break: break-word;
-  overflow-x: auto;
   position: relative;
+}
+
+#detailModalBody #content-cell {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  max-width: 100%;
+}
+
+#detailModalBody .inline-code {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+#detailModalBody pre code {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+#detailModalBody img {
+  max-width: 100%;
+  height: auto;
+}
+
+#detailModalBody p,
+#detailModalBody div,
+#detailModalBody span {
+  max-width: 100%;
 }
 
 #detailModalBody .copy-btn {
