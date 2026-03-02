@@ -674,6 +674,8 @@ def import_json(request):
                     id_mapping[original_id] = new_problem.id
 
                 # 处理 CvBase 数据导入
+                from datetime import datetime
+
                 for cv_item in cv_base_data:
                     original_id = cv_item.get('id')
 
@@ -684,18 +686,57 @@ def import_json(request):
                     title = cv_item.get('title', '')
                     content = cv_item.get('content', '')
                     content_editor_type = cv_item.get('content_editor_type', 'plain')
+                    content_file = cv_item.get('content_file', '')
+                    # 获取导入的文件名列表
+                    import_files = set()
+                    if content_file:
+                        import_files = set(content_file.split(CvBase.FILE_DELIMITER))
 
                     # 移除 id，让 Django 生成新的
                     cv_item.pop('id', None)
 
-                    # 检查 record_date 是否已存在，如果存在则更新，否则创建
+                    # 检查 record_date 是否已存在，如果存在则合并，否则创建
                     try:
                         existing = CvBase.objects.filter(record_date=record_date).first()
                         if existing:
-                            existing.title = title
-                            existing.content = content
-                            existing.content_editor_type = content_editor_type
-                            existing.save()
+                            # 检查内容是否不同，如果不同则合并
+                            merged = False
+                            import_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                            # 合并 title（如果不同）
+                            if existing.title and title and existing.title != title:
+                                separator = f" | 导入内容（{import_time_str}） | "
+                                existing.title = existing.title + separator + title
+                                merged = True
+                            elif title:
+                                existing.title = title
+                                merged = True
+
+                            # 合并 content（如果不同）
+                            if existing.content and content and existing.content != content:
+                                separator = f"\n\n--- 导入内容（{import_time_str}） ---\n\n"
+                                existing.content = existing.content + separator + content
+                                merged = True
+                            elif content:
+                                existing.content = content
+                                merged = True
+
+                            # 合并 content_file（附件）
+                            if import_files:
+                                # 获取现有的文件名列表
+                                existing_files = set(existing.get_content_files())
+                                # 找出新的文件（不在现有列表中的）
+                                new_files = import_files - existing_files
+                                if new_files:
+                                    # 合并文件列表
+                                    all_files = list(existing_files | import_files)
+                                    existing.set_content_files(all_files)
+                                    merged = True
+
+                            # 如果有合并，更新 content_editor_type（优先使用导入的）
+                            if merged:
+                                existing.content_editor_type = content_editor_type
+                                existing.save()
                             new_cv_base = existing
                         else:
                             new_cv_base = CvBase.objects.create(created_by=request.user, **cv_item)
