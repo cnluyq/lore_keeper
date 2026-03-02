@@ -545,7 +545,14 @@ def export_json(request):
         )
     )
 
-    # 创建 tar.gz 打包：items.json + uploads/
+    cv_base_data = list(
+        CvBase.objects.all().values(
+            'id', 'record_date', 'title', 'content', 'content_editor_type',
+            'content_file', 'create_time', 'update_time'
+        )
+    )
+
+    # 创建 tar.gz 打包：items.json + cv_base_records.json + uploads/
     export_buffer = io.BytesIO()
 
     with tarfile.open(fileobj=export_buffer, mode='w:gz') as tar:
@@ -556,7 +563,14 @@ def export_json(request):
         tarinfo.size = len(json_data)
         tar.addfile(tarinfo, json_file)
 
-        # 2. 添加 uploads 目录
+        # 2. 添加 cv_base_records.json
+        cv_base_json_data = json.dumps(cv_base_data, cls=DjangoJSONEncoder, ensure_ascii=False, indent=2).encode()
+        cv_base_json_file = io.BytesIO(cv_base_json_data)
+        cv_base_tarinfo = tarfile.TarInfo(name='cv_base_records.json')
+        cv_base_tarinfo.size = len(cv_base_json_data)
+        tar.addfile(cv_base_tarinfo, cv_base_json_file)
+
+        # 3. 添加 uploads 目录
         uploads_path = Path(settings.MEDIA_ROOT)
         if uploads_path.exists():
             # 添加所有按 Problem ID 命名的目录
@@ -564,6 +578,11 @@ def export_json(request):
                 if item_dir.is_dir() and item_dir.name.isdigit():
                     # 递归添加整个目录，保持结构
                     tar.add(item_dir, arcname=f'uploads/{item_dir.name}')
+
+            # 添加 cv_base 目录
+            cv_base_dir = uploads_path / 'cv_base'
+            if cv_base_dir.exists():
+                tar.add(cv_base_dir, arcname='uploads/cv_base')
 
             # 添加 upload_images 目录
             upload_images_dir = uploads_path / 'upload_images'
@@ -613,8 +632,16 @@ def import_json(request):
                 with open(os.path.join(tmp_dir, 'items.json'), 'r') as f:
                     data = json.loads(f.read())
 
+                # 读取 cv_base_records.json（如果存在）
+                cv_base_data = []
+                cv_base_file_path = os.path.join(tmp_dir, 'cv_base_records.json')
+                if os.path.exists(cv_base_file_path):
+                    with open(cv_base_file_path, 'r') as f:
+                        cv_base_data = json.loads(f.read())
+
                 # ID 映射：original_id -> new_id
                 id_mapping = {}
+                cv_base_id_mapping = {}
 
                 for item in data:
                     original_id = item.get('id')
@@ -645,6 +672,39 @@ def import_json(request):
 
                     # 记录 ID 映射
                     id_mapping[original_id] = new_problem.id
+
+                # 处理 CvBase 数据导入
+                for cv_item in cv_base_data:
+                    original_id = cv_item.get('id')
+
+                    # 设置默认值
+                    cv_item.setdefault('content_editor_type', 'plain')
+
+                    record_date = cv_item.get('record_date')
+                    title = cv_item.get('title', '')
+                    content = cv_item.get('content', '')
+                    content_editor_type = cv_item.get('content_editor_type', 'plain')
+
+                    # 移除 id，让 Django 生成新的
+                    cv_item.pop('id', None)
+
+                    # 检查 record_date 是否已存在，如果存在则更新，否则创建
+                    try:
+                        existing = CvBase.objects.filter(record_date=record_date).first()
+                        if existing:
+                            existing.title = title
+                            existing.content = content
+                            existing.content_editor_type = content_editor_type
+                            existing.save()
+                            new_cv_base = existing
+                        else:
+                            new_cv_base = CvBase.objects.create(created_by=request.user, **cv_item)
+                    except Exception as e:
+                        print(f"Error importing CvBase record with date {record_date}: {e}")
+                        continue
+
+                    # 记录 ID 映射
+                    cv_base_id_mapping[int(original_id)] = new_cv_base.id
 
                 # 处理 uploads 目录
                 import_dir = os.path.join(tmp_dir, 'uploads')
@@ -688,10 +748,33 @@ def import_json(request):
                             if os.path.isfile(src_file):
                                 shutil.copy2(src_file, upload_images_dst / image_file)
 
+                    # 处理 cv_base 目录
+                    cv_base_src_dir = os.path.join(import_dir, 'cv_base')
+                    if os.path.exists(cv_base_src_dir):
+                        cv_base_dst_dir = uploads_root / 'cv_base'
+                        cv_base_dst_dir.mkdir(parents=True, exist_ok=True)
+
+                        for original_id_dir_name in sorted(os.listdir(cv_base_src_dir)):
+                            if original_id_dir_name.isdigit():
+                                original_id = int(original_id_dir_name)
+                                new_id = cv_base_id_mapping.get(original_id)
+
+                                if new_id:
+                                    new_dir = cv_base_dst_dir / str(new_id)
+                                    new_dir.mkdir(parents=True, exist_ok=True)
+
+                                    src_dir = os.path.join(cv_base_src_dir, str(original_id))
+                                    for item_name in os.listdir(src_dir):
+                                        src_item = os.path.join(src_dir, item_name)
+                                        if os.path.isdir(src_item):
+                                            shutil.copytree(src_item, new_dir / item_name,
+                                                          dirs_exist_ok=True)
+
                 return JsonResponse({
-                    'message': f'import {len(data)} items successfully',
+                    'message': f'import {len(data)} items and {len(cv_base_data)} cv_base records successfully',
                     'error': None,
-                    'id_mapping_count': len(id_mapping)
+                    'id_mapping_count': len(id_mapping),
+                    'cv_base_id_mapping_count': len(cv_base_id_mapping)
                 })
 
             finally:
@@ -699,11 +782,21 @@ def import_json(request):
                 shutil.rmtree(tmp_dir, ignore_errors=True)
 
         except Exception as e:
-            detail = f'{type(e).__name__}'
-            return JsonResponse({
-                'status': 'error',
-                'error': f'failed to import：{detail}: please check inputted password firstly!'
-            }, status=400)
+            import traceback
+            error_detail = str(e)
+            error_type = type(e).__name__
+
+            if 'InvalidTag' in error_detail or 'InvalidKey' in error_detail:
+                return JsonResponse({
+                    'status': 'error',
+                    'error': f'密码错误或文件格式不正确: {error_type}'
+                }, status=400)
+            else:
+                traceback.print_exc()
+                return JsonResponse({
+                    'status': 'error',
+                    'error': f'导入失败: {error_type}: {error_detail}'
+                }, status=400)
 
     # GET 请求禁止访问
     return redirect('problem_list')
