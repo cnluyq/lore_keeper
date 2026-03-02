@@ -528,17 +528,60 @@ function renderDateCalendar() {
   const month = currentDateForModal.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-  document.getElementById('dateModalTitle').textContent = `${year} ${monthNames[month]}`;
+  renderYearSelector(year);
+  renderMonthSelector(month);
+  renderDayGrid(year, month, firstDay, daysInMonth);
+}
 
+function renderYearSelector(currentYear) {
+  const yearSelector = document.getElementById('yearSelector');
+  yearSelector.innerHTML = '';
+
+  const yearStart = currentYear - 2;
+  const yearEnd = currentYear + 2;
+
+  for (let y = yearStart; y <= yearEnd; y++) {
+    const yearBtn = document.createElement('button');
+    yearBtn.className = 'year-btn';
+    yearBtn.textContent = y;
+    if (y === currentYear) {
+      yearBtn.classList.add('active');
+    }
+    yearBtn.addEventListener('click', () => {
+      currentDateForModal.setFullYear(y);
+      loadCalendarData(y, currentDateForModal.getMonth() + 1);
+    });
+    yearSelector.appendChild(yearBtn);
+  }
+}
+
+function renderMonthSelector(currentMonth) {
+  const monthSelector = document.getElementById('monthSelector');
+  monthSelector.innerHTML = '';
+
+  for (let monthIndex = 1; monthIndex <= 12; monthIndex++) {
+    const monthBtn = document.createElement('button');
+    monthBtn.className = 'month-btn';
+    monthBtn.textContent = monthIndex;
+    if (monthIndex === currentMonth + 1) {
+      monthBtn.classList.add('active');
+    }
+    monthBtn.addEventListener('click', () => {
+      currentDateForModal.setMonth(monthIndex - 1);
+      loadCalendarData(currentDateForModal.getFullYear(), monthIndex);
+    });
+    monthSelector.appendChild(monthBtn);
+  }
+}
+
+function renderDayGrid(year, month, firstDay, daysInMonth) {
   const daysContainer = document.getElementById('dateModalDays');
   daysContainer.innerHTML = '';
 
   const recordDateInput = document.querySelector('[name="record_date"]');
   const currentDateStr = recordDateInput.value;
 
-  // Get today's date (set to midnight for comparison)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -562,8 +605,6 @@ function renderDateCalendar() {
       dayCell.classList.add('selected');
     }
 
-    // Enable click if it's the current selected date AND it's not in the future
-    // OR if it's a different date that's not already used AND not in the future
     if (dateStr === currentDateStr) {
       if (dateToCheck <= today) {
         dayCell.addEventListener('click', () => selectDate(year, month, day));
@@ -580,9 +621,11 @@ function renderDateCalendar() {
   }
 }
 
-function changeDateModalMonth(delta) {
-  currentDateForModal.setMonth(currentDateForModal.getMonth() + delta);
-  loadCalendarData(currentDateForModal.getFullYear(), currentDateForModal.getMonth() + 1);
+function changeYearBatch(delta) {
+  const currentYear = currentDateForModal.getFullYear();
+  const newYear = currentYear + delta;
+  currentDateForModal.setFullYear(newYear);
+  loadCalendarData(newYear, currentDateForModal.getMonth() + 1);
 }
 
 function selectDate(year, month, day) {
@@ -623,14 +666,17 @@ function getCookie(name) {
     <div class="modal-content">
   <div class="modal-body p-0">
     <div class="calendar-modal">
-          <div class="calendar-header">
-            <button class="calendar-nav" onclick="changeDateModalMonth(-1)">
+          <div class="calendar-header year-header">
+            <button class="calendar-nav" onclick="changeYearBatch(-5)">
               <i class="bi bi-chevron-left"></i>
             </button>
-            <span class="calendar-title" id="dateModalTitle"></span>
-            <button class="calendar-nav" onclick="changeDateModalMonth(1)">
+            <div class="year-selector" id="yearSelector"></div>
+            <button class="calendar-nav" onclick="changeYearBatch(5)">
               <i class="bi bi-chevron-right"></i>
             </button>
+          </div>
+          <div class="calendar-header month-header">
+            <div class="month-selector" id="monthSelector"></div>
           </div>
           <div class="calendar-grid">
             <div class="calendar-day-label">Sun</div>
@@ -671,6 +717,12 @@ function getCookie(name) {
   align-items: center;
 }
 
+#dateModal .calendar-header.month-header {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  border-radius: 0;
+  padding: 0.75rem 1rem;
+}
+
 #dateModal .calendar-grid {
   padding: 1rem;
   display: grid;
@@ -709,25 +761,101 @@ function getCookie(name) {
   color: white;
 }
 
+#dateModal .modal-dialog {
+  max-width: 420px;
+}
+
+#dateModal .calendar-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.6rem 0.8rem;
+  border-radius: 1rem 1rem 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#dateModal .calendar-header.month-header {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  border-radius: 0;
+  padding: 0.5rem 0.8rem;
+}
+
 #dateModal .calendar-nav {
   background: none;
   border: none;
   color: white;
-  font-size: 1.2rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  padding: 0 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
 }
 
 #dateModal .calendar-nav:hover {
-  opacity: 0.8;
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
-#dateModal .calendar-title {
+#dateModal .year-selector {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  flex: 1;
+}
+
+#dateModal .year-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 54px;
+}
+
+#dateModal .year-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+#dateModal .year-btn.active {
+  background: white;
+  color: #667eea;
   font-weight: 600;
 }
 
-#dateModal .modal-dialog {
-  max-width: 450px;
+#dateModal .month-selector {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+#dateModal .month-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.3rem 0;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+  min-width: 28px;
+  max-width: 32px;
+}
+
+#dateModal .month-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+#dateModal .month-btn.active {
+  background: white;
+  color: #764ba2;
+  font-weight: 600;
 }
 </style>
 {% endblock %}
