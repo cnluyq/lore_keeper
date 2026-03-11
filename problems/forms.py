@@ -1,5 +1,5 @@
 from django import forms
-from .models import Problem, SensitiveWord, SiteConfig
+from .models import Problem, SensitiveWord, SiteConfig, CvBase
 from django.core.exceptions import ValidationError
 import re
 import html
@@ -112,4 +112,47 @@ class SiteConfigForm(forms.ModelForm):
         if max_file_size > 1000:
             raise forms.ValidationError('Max file size cannot exceed 1000.')
         return max_file_size
+
+class CvBaseForm(forms.ModelForm):
+    class Meta:
+        model = CvBase
+        fields = ['record_date', 'title', 'content', 'content_editor_type']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Default editor type is markdown
+        if self.instance.pk:
+            self.initial['content_editor_type'] = self.instance.content_editor_type or 'markdown'
+        else:
+            self.initial['content_editor_type'] = 'markdown'
+
+        # Add form-control class to record_date field
+        self.fields['record_date'].widget.attrs.update({
+            'readonly': True,
+            'class': 'form-control',
+            'style': 'width: 180px; height: 50px; padding: 0.5rem 0.75rem; font-size: 1rem;'
+        })
+
+        # Add rounded border to title field
+        self.fields['title'].widget.attrs.update({
+            'class': 'form-control',
+            'style': 'border-radius: 0.5rem; height: 50px; padding: 0.5rem 0.75rem; font-size: 1rem;'
+        })
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # 只在编辑器类型为 plain 时才转义HTML字符
+        # markdown 模式下，内容将使用 marked.js 解析，应保持原样
+        content_editor_type = cleaned_data.get('content_editor_type', 'markdown')
+        text_fields = ['title']
+        if content_editor_type == 'plain':
+            text_fields.append('content')
+
+        for field_name in text_fields:
+            text = cleaned_data.get(field_name, '')
+            if text:
+                cleaned_data[field_name] = html.escape(text)
+
+        return cleaned_data
 

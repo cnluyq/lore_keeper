@@ -1,0 +1,960 @@
+{% extends 'problems/base.html' %}
+{% load static %}
+{% block content %}
+<!-- Load PrismJS for code highlighting -->
+<link href="{% static 'libs/prismjs/themes/prism.min.css' %}" rel="stylesheet"/>
+<script src="{% static 'libs/prismjs/prism.min.js' %}" defer></script>
+<script src="{% static 'libs/prismjs/plugins/autoloader/prism-autoloader.min.js' %}" defer></script>
+<script src="{% static 'libs/marked/marked.min.js' %}"></script>
+<script src="{% static 'libs/clipboard/clipboard-polyfill.min.js' %}"></script>
+
+<style>
+  .container {
+    max-width: 95%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+  }
+  table {
+    min-width: 1200px;
+    width: 100%;
+  }
+
+  th:last-child,
+  td:last-child {
+    white-space: nowrap;
+  }
+
+  .year-group {
+    background-color: #f8f9fa;
+    margin-bottom: 1.5rem;
+  }
+
+  .year-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 0.5rem 0.5rem 0 0;
+    transition: transform 0.2s;
+  }
+
+  .year-header:hover {
+    transform: scale(1.02);
+  }
+
+  .year-header .toggle-icon {
+    display: inline-block;
+    transition: transform 0.3s ease;
+    margin-right: 0.5rem;
+    color: white;
+  }
+
+  .year-header.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+  }
+
+  .year-header:not(.collapsed) .toggle-icon {
+    transform: rotate(0deg);
+  }
+
+  .year-content {
+    background-color: white;
+    border-radius: 0 0 0.5rem 0.5rem;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+  }
+
+  .month-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .month-header {
+    background: linear-gradient(135deg, #cff4fc 0%, #aeebf9 100%);
+    color: #495057;
+    padding: 0.5rem 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 0.375rem;
+    margin-bottom: 1rem;
+    transition: background-color 0.2s;
+  }
+
+  .month-header:hover {
+    background: linear-gradient(135deg, #c0e8fc 0%, #9de4f8 100%);
+  }
+
+  .month-header .toggle-icon {
+    display: inline-block;
+    transition: transform 0.3s ease;
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+    color: #495057;
+  }
+
+  .month-header.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+  }
+
+  .month-header:not(.collapsed) .toggle-icon {
+    transform: rotate(0deg);
+  }
+
+  .record-item {
+    background-color: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem 1.5rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+
+  .record-item:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .record-date {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0d6efd;
+    width: 120px;
+  }
+
+  .record-title {
+    flex-grow: 1;
+    margin-left: 1.5rem;
+  }
+
+  .record-title a {
+    text-decoration: none;
+    color: #212529;
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+
+  .record-title a:hover {
+    color: #0d6efd;
+  }
+
+  .record-time {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+  }
+
+  .btn-cv {
+    border-radius: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+  }
+
+  .empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    color: #dee2e6;
+  }
+
+  .action-buttons {
+    position: fixed;
+    top: 100px;
+    right: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 1000;
+  }
+
+  .calendar-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    border-radius: 1rem;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.2);
+    z-index: 1055;
+    max-width: 420px;
+    width: 90%;
+  }
+
+  .calendar-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.6rem 0.8rem;
+    border-radius: 1rem 1rem 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .calendar-header.month-header {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    border-radius: 0;
+    padding: 0.5rem 0.8rem;
+  }
+
+  .calendar-nav {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0.3rem 0.5rem;
+    border-radius: 0.25rem;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+  }
+
+  .calendar-nav:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .year-selector {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    flex: 1;
+  }
+
+  .year-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 0.35rem 0.7rem;
+    border-radius: 0.25rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 54px;
+  }
+
+  .year-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .year-btn.active {
+    background: white;
+    color: #667eea;
+    font-weight: 600;
+  }
+
+  .month-selector {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .month-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 0.3rem 0;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 1;
+    min-width: 28px;
+    max-width: 32px;
+  }
+
+  .month-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .month-btn.active {
+    background: white;
+    color: #764ba2;
+    font-weight: 600;
+  }
+
+  .calendar-grid {
+    padding: 1rem;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.25rem;
+  }
+
+  .calendar-day-label {
+    text-align: center;
+    font-weight: 600;
+    color: #6c757d;
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+  }
+
+  .calendar-day {
+    text-align: center;
+    padding: 0.5rem;
+    cursor: pointer;
+    border-radius: 0.375rem;
+    transition: background-color 0.2s;
+    font-size: 0.9rem;
+  }
+
+  .calendar-day:hover:not(.disabled) {
+    background-color: #e9ecef;
+  }
+
+  .calendar-day.disabled {
+    color: #adb5bd;
+    cursor: not-allowed;
+  }
+
+  .calendar-day.selected {
+    background-color: #0d6efd;
+    color: white;
+  }
+
+  .calendar-nav {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 0.5rem;
+  }
+
+  .calendar-nav:hover {
+    opacity: 0.8;
+  }
+
+  .calendar-title {
+    font-weight: 600;
+  }
+
+  #calendarModal .modal-content {
+    border-radius: 1rem;
+    overflow: hidden;
+  }
+</style>
+
+<div class="container mt-4">
+  <h2 class="mb-4">CV Base</h1>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="action-buttons">
+    <button class="btn btn-primary btn-cv" onclick="openCalendar()">
+      <i class="bi bi-calendar-plus"></i> Add New
+    </button>
+    <button class="btn btn-outline-primary btn-cv" onclick="expandAll()">
+      <i class="bi bi-chevron-down"></i> Expand All
+    </button>
+    <button class="btn btn-outline-primary btn-cv" onclick="collapseAll()">
+      <i class="bi bi-chevron-up"></i> Collapse All
+    </button>
+  </div>
+
+  {% if grouped_records %}
+    {% for year, months in grouped_records.items %}
+      <div class="year-group" data-year="{{ year }}">
+        <div class="year-header collapsed" onclick="toggleYear({{ year }})">
+          <i class="bi bi-chevron-down toggle-icon"></i>
+          <span>{{ year }}</span>
+          <span class="badge bg-light text-dark ms-2">{{ months|length }} month(s)</span>
+        </div>
+        <div class="year-content" style="display: none;">
+          {% for month, records in months.items %}
+            <div class="month-group" data-year="{{ year }}" data-month="{{ month }}">
+              <div class="month-header collapsed" onclick="toggleMonth({{ year }}, {{ month }})">
+                <i class="bi bi-chevron-down toggle-icon"></i>
+                <span>{{ month }} month</span>
+                <span class="badge bg-light text-dark ms-2">{{ records|length }} record(s)</span>
+              </div>
+              <div class="record-list" style="display: none;">
+                {% for record in records %}
+                  <div class="record-item" ondblclick="showDetail({{ record.id }})" data-record-id="{{ record.id }}">
+                    <div class="record-date">{{ record.record_date|date:"m-d" }}</div>
+                    <div class="record-title">
+                      <a href="{% url 'cv_base_edit' record.id %}" onclick="event.stopPropagation()">
+                        {{ record.title|default:"(Untitled)" }}
+                      </a>
+                    </div>
+                    <div class="record-time">
+                      Updated: {{ record.update_time|date:"Y-m-d H:i" }}
+                    </div>
+                    <div>
+                      <a href="{% url 'cv_base_edit' record.id %}" class="btn btn-sm btn-outline-primary btn-cv" onclick="event.stopPropagation()">
+                        <i class="bi bi-pencil"></i> Edit
+                      </a>
+                      <a href="{% url 'cv_base_delete' record.id %}" class="btn btn-sm btn-outline-danger btn-cv" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this record?');">
+                        <i class="bi bi-trash"></i> Delete
+                      </a>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <i class="bi bi-journal-bookmark"></i>
+      <h3>No records found</h3>
+      <p>Click "Add New" to create your first record</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Calendar Modal -->
+<div class="modal fade" id="calendarModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body p-3">
+        <div class="calendar-modal">
+          <div class="calendar-header year-header">
+            <button class="calendar-nav" onclick="changeYearBatch(-5)">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <div class="year-selector" id="yearSelector"></div>
+            <button class="calendar-nav" onclick="changeYearBatch(5)">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+          <div class="calendar-header month-header">
+            <div class="month-selector" id="monthSelector"></div>
+          </div>
+          <div class="calendar-grid">
+            <div class="calendar-day-label">Sun</div>
+            <div class="calendar-day-label">Mon</div>
+            <div class="calendar-day-label">Tue</div>
+            <div class="calendar-day-label">Wed</div>
+            <div class="calendar-day-label">Thu</div>
+            <div class="calendar-day-label">Fri</div>
+            <div class="calendar-day-label">Sat</div>
+          </div>
+          <div class="calendar-grid" id="calendarDays"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentDate = new Date();
+let existingDates = [];
+
+function openCalendar() {
+  document.getElementById('calendarModal').classList.add('show');
+  document.getElementById('calendarModal').style.display = 'block';
+  loadCalendarData(currentDate.getFullYear(), currentDate.getMonth() + 1);
+}
+
+function loadCalendarData(year, month) {
+  fetch(`/cv-base/calendar-days/?year=${year}&month=${month}`)
+    .then(response => response.json())
+    .then(data => {
+      existingDates = data.existing_dates || [];
+      renderCalendar();
+    })
+    .catch(error => console.error('Error loading calendar data:', error));
+}
+
+function renderCalendar() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  renderYearSelector(year);
+  renderMonthSelector(month);
+  renderDayGrid(year, month, firstDay, daysInMonth);
+}
+
+function renderYearSelector(currentYear) {
+  const yearSelector = document.getElementById('yearSelector');
+  yearSelector.innerHTML = '';
+
+  const yearStart = currentYear - 2;
+  const yearEnd = currentYear + 2;
+
+  for (let y = yearStart; y <= yearEnd; y++) {
+    const yearBtn = document.createElement('button');
+    yearBtn.className = 'year-btn';
+    yearBtn.textContent = y;
+    if (y === currentYear) {
+      yearBtn.classList.add('active');
+    }
+    yearBtn.addEventListener('click', () => {
+      currentDate.setFullYear(y);
+      loadCalendarData(y, currentDate.getMonth() + 1);
+    });
+    yearSelector.appendChild(yearBtn);
+  }
+}
+
+function renderMonthSelector(currentMonth) {
+  const monthSelector = document.getElementById('monthSelector');
+  monthSelector.innerHTML = '';
+
+  for (let monthIndex = 1; monthIndex <= 12; monthIndex++) {
+    const monthBtn = document.createElement('button');
+    monthBtn.className = 'month-btn';
+    monthBtn.textContent = monthIndex;
+    if (monthIndex === currentMonth + 1) {
+      monthBtn.classList.add('active');
+    }
+    monthBtn.addEventListener('click', () => {
+      currentDate.setMonth(monthIndex - 1);
+      loadCalendarData(currentDate.getFullYear(), monthIndex);
+    });
+    monthSelector.appendChild(monthBtn);
+  }
+}
+
+function renderDayGrid(year, month, firstDay, daysInMonth) {
+  const daysContainer = document.getElementById('calendarDays');
+  daysContainer.innerHTML = '';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < firstDay; i++) {
+    const emptyCell = document.createElement('div');
+    emptyCell.className = 'calendar-day';
+    daysContainer.appendChild(emptyCell);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dayCell = document.createElement('div');
+    dayCell.className = 'calendar-day';
+    dayCell.textContent = day;
+
+    const dateToCheck = new Date(year, month, day);
+    dateToCheck.setHours(0, 0, 0, 0);
+
+    if (existingDates.includes(day) || dateToCheck > today) {
+      dayCell.classList.add('disabled');
+    } else {
+      dayCell.addEventListener('click', () => selectDate(year, month, day));
+    }
+
+    daysContainer.appendChild(dayCell);
+  }
+}
+
+function changeYearBatch(delta) {
+  const currentYear = currentDate.getFullYear();
+  const newYear = currentYear + delta;
+  currentDate.setFullYear(newYear);
+  loadCalendarData(newYear, currentDate.getMonth() + 1);
+}
+
+function selectDate(year, month, day) {
+  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+  fetch('/cv-base/create-by-date/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken'),
+    },
+    body: JSON.stringify({ date: dateStr }),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.redirect_url) {
+        window.location.href = data.redirect_url;
+      } else if (data.error) {
+        alert(data.error);
+      }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function toggleYear(year) {
+  const yearGroup = document.querySelector(`.year-group[data-year="${year}"]`);
+  const yearHeader = yearGroup.querySelector('.year-header');
+  const yearContent = yearGroup.querySelector('.year-content');
+
+  if (yearContent.style.display === 'none') {
+    yearContent.style.display = 'block';
+    yearHeader.classList.remove('collapsed');
+    saveCollapseState('year', year, false);
+  } else {
+    yearContent.style.display = 'none';
+    yearHeader.classList.add('collapsed');
+    saveCollapseState('year', year, true);
+  }
+}
+
+function toggleMonth(year, month) {
+  const monthGroup = document.querySelector(`.month-group[data-year="${year}"][data-month="${month}"]`);
+  const monthHeader = monthGroup.querySelector('.month-header');
+  const recordList = monthGroup.querySelector('.record-list');
+
+  if (recordList.style.display === 'none') {
+    recordList.style.display = 'block';
+    monthHeader.classList.remove('collapsed');
+    saveCollapseState('month', `${year}-${month}`, false);
+  } else {
+    recordList.style.display = 'none';
+    monthHeader.classList.add('collapsed');
+    saveCollapseState('month', `${year}-${month}`, true);
+  }
+}
+
+function saveCollapseState(type, key, collapsed) {
+  try {
+    const state = JSON.parse(localStorage.getItem('cv_base_collapse_state') || '{}');
+    state[type] = state[type] || {};
+    state[type][key] = collapsed;
+    localStorage.setItem('cv_base_collapse_state', JSON.stringify(state));
+  } catch (e) {
+    console.error('Error saving collapse state:', e);
+  }
+}
+
+function loadCollapseStates() {
+  try {
+    const state = JSON.parse(localStorage.getItem('cv_base_collapse_state') || '{}');
+    
+    // Only restore expanded states (isCollapsed === false)
+    // HTML default is collapsed (display: none, class="collapsed"), so we don't need to handle true states
+    // Restore year expand states
+    if (state.year) {
+      Object.keys(state.year).forEach(yearKey => {
+        const isCollapsed = state.year[yearKey];
+        if (!isCollapsed) {
+          const yearElement = document.querySelector(`.year-group[data-year="${yearKey}"]`);
+          if (yearElement) {
+            const yearContent = yearElement.querySelector('.year-content');
+            const yearHeader = yearElement.querySelector('.year-header');
+            yearContent.style.display = 'block';
+            yearHeader.classList.remove('collapsed');
+          }
+        }
+      });
+    }
+    
+    // Restore month expand states
+    if (state.month) {
+      Object.keys(state.month).forEach(monthKey => {
+        const [year, month] = monthKey.split('-');
+        const isCollapsed = state.month[monthKey];
+        if (!isCollapsed) {
+          const monthElement = document.querySelector(`.month-group[data-year="${year}"][data-month="${month}"]`);
+          if (monthElement) {
+            const recordList = monthElement.querySelector('.record-list');
+            const monthHeader = monthElement.querySelector('.month-header');
+            recordList.style.display = 'block';
+            monthHeader.classList.remove('collapsed');
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Error loading collapse states:', e);
+  }
+}
+
+function expandAll() {
+  document.querySelectorAll('.year-content').forEach(el => el.style.display = 'block');
+  document.querySelectorAll('.record-list').forEach(el => el.style.display = 'block');
+  document.querySelectorAll('.year-header').forEach(el => el.classList.remove('collapsed'));
+  document.querySelectorAll('.month-header').forEach(el => el.classList.remove('collapsed'));
+  
+  // Save state: all expanded (empty state means all expanded)
+  try {
+    localStorage.setItem('cv_base_collapse_state', JSON.stringify({ year: {}, month: {} }));
+  } catch (e) {
+    console.error('Error saving collapse state:', e);
+  }
+}
+
+function collapseAll() {
+  document.querySelectorAll('.year-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.record-list').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.year-header').forEach(el => el.classList.add('collapsed'));
+  document.querySelectorAll('.month-header').forEach(el => el.classList.add('collapsed'));
+  
+  // Save collapsed state for all years and months
+  const state = { year: {}, month: {} };
+  document.querySelectorAll('.year-group').forEach(yearElement => {
+    const year = yearElement.dataset.year;
+    state.year[year] = true;
+    
+    yearElement.querySelectorAll('.month-group').forEach(monthElement => {
+      const month = monthElement.dataset.month;
+      state.month[`${year}-${month}`] = true;
+    });
+  });
+  localStorage.setItem('cv_base_collapse_state', JSON.stringify(state));
+}
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const modal = document.getElementById('calendarModal');
+  if (event.target === modal) {
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+  }
+}
+
+function showDetail(recordId) {
+  const modal = document.getElementById('detailModal');
+  const modalBody = document.getElementById('detailModalBody');
+
+  modalBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border" role="status"></div><p class="mt-3">Loading...</p></div>';
+
+  modal.classList.add('show');
+  modal.style.display = 'block';
+
+  window.__preventAutoRender__ = true;
+
+  fetch(`/cv-base/detail/${recordId}/`)
+    .then(response => response.text())
+    .then(html => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      const cardBody = doc.querySelector('.card-body');
+      if (cardBody) {
+        modalBody.innerHTML = cardBody.innerHTML;
+
+        delete window.cvRecordData;
+        delete window.renderCvBaseContent;
+
+        const oldInlineScripts = Array.from(document.querySelectorAll('script'))
+          .filter(s => !s.src && (s.textContent.includes('renderCvBaseContent') || s.textContent.includes('cvRecordData')));
+
+        if (oldInlineScripts.length > 0) {
+          oldInlineScripts.forEach(s => s.remove());
+        }
+
+        const scriptElements = doc.querySelectorAll('script');
+
+        scriptElements.forEach((script) => {
+          const isExternal = script.src && script.src.length > 0;
+          const isLibrary = isExternal && (script.src.includes('marked') || script.src.includes('prism') || script.src.includes('clipboard'));
+          
+          if (!isExternal || !isLibrary) {
+            const newScript = document.createElement('script');
+            newScript.textContent = script.textContent;
+            document.body.appendChild(newScript);
+          }
+        });
+
+        const scriptTexts = [];
+        scriptElements.forEach(script => {
+          if (!script.src || (!script.src.includes('marked') && !script.src.includes('prism') && !script.src.includes('clipboard'))) {
+            scriptTexts.push(script.textContent);
+          }
+        });
+
+        try {
+          const combinedScript = scriptTexts.join('\\n');
+          if (combinedScript.includes('cvRecordData = {')) {
+            const match = combinedScript.match(/const cvRecordData = \{[\s\S]*?\};/);
+            if (match) {
+              eval(match[0] + ' window.cvRecordData = cvRecordData;');
+            }
+          }
+        } catch (e) {
+        }
+
+        setTimeout(() => {
+          const contentCell = document.getElementById('content-cell');
+          if (contentCell) {
+            contentCell.innerHTML = 'Loading...';
+          }
+
+          if (typeof window.renderCvBaseContent === 'function' && window.cvRecordData) {
+            window.renderCvBaseContent();
+          }
+
+          if (typeof Prism !== 'undefined') {
+            Prism.highlightAllUnder(modalBody);
+          }
+          
+          delete window.__preventAutoRender__;
+        }, 200);
+      } else {
+        modalBody.innerHTML = '<p class="text-danger">Failed to load content</p>';
+        delete window.__preventAutoRender__;
+      }
+    })
+    .catch(error => {
+      modalBody.innerHTML = '<p class="text-danger">Error loading content</p>';
+      delete window.__preventAutoRender__;
+    });
+}
+
+// Load collapse states - execute immediately when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadCollapseStates);
+} else {
+  loadCollapseStates();
+}
+
+function closeDetailModal() {
+  const modal = document.getElementById('detailModal');
+  modal.classList.remove('show');
+  modal.style.display = 'none';
+}
+
+// Close detail modal when clicking outside
+document.addEventListener('click', function(event) {
+  const detailModal = document.getElementById('detailModal');
+  if (event.target === detailModal) {
+    closeDetailModal();
+  }
+});
+</script>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-gradient-nav">
+        <h5 class="modal-title text-white">Record Details</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="closeDetailModal()"></button>
+      </div>
+      <div class="modal-body p-4" id="detailModalBody">
+        <!-- Content will be loaded here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Detail modal styles */
+#detailModal .modal-dialog {
+  max-width: 95vw;
+}
+
+#detailModalBody {
+  min-height: 400px;
+  padding: 1rem;
+}
+
+#detailModalBody table {
+  width: 100%;
+  max-width: 100%;
+}
+
+#detailModalBody > table {
+  border-spacing: 0;
+  width: 100%;
+}
+
+#detailModalBody tr {
+  border-bottom: 1px solid #dee2e6;
+}
+
+#detailModalBody tr:last-child {
+  border-bottom: none;
+}
+
+#detailModalBody th {
+  width: 150px;
+  min-width: 150px;
+  max-width: 200px;
+  padding: 0.5rem;
+  padding-right: 1rem;
+  vertical-align: top;
+}
+
+#detailModalBody td {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  padding: 0.5rem;
+}
+
+#detailModalBody pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  position: relative;
+}
+
+#detailModalBody #content-cell {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  max-width: 100%;
+}
+
+#detailModalBody .inline-code {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+#detailModalBody pre code {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+#detailModalBody img {
+  max-width: 100%;
+  height: auto;
+}
+
+#detailModalBody p,
+#detailModalBody div,
+#detailModalBody span {
+  max-width: 100%;
+}
+
+#detailModalBody .copy-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  opacity: 0;
+  transition: opacity .2s;
+  background: #0d6efd;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  z-index: 10;
+}
+
+#detailModalBody pre:hover .copy-btn {
+  opacity: 1;
+}
+
+#detailModalBody img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+</style>
+{% endblock %}

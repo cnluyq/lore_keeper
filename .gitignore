@@ -209,3 +209,14 @@ __marimo__/
 problems/migrations/
 nohup.out
 uploads/
+
+# Performance optimization documentation (local only)
+DEPLOYMENT_GUIDE.md
+OPTIMIZATION_SUMMARY.md
+
+# Test scripts
+test_*.py
+verify_*.py
+
+# Start script
+start_server.sh
