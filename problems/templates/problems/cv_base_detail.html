@@ -1,0 +1,436 @@
+{% extends 'problems/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+.container {
+    max-width: 100%;
+    padding: 0 1rem;
+}
+
+.table th {
+    width: 150px;
+    min-width: 150px;
+    max-width: 200px;
+    padding-right: 1rem;
+    vertical-align: top;
+}
+
+.table td {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    padding-left: 0.5rem;
+}
+
+.card-body,
+.card-body td,
+.card-body th,
+.card-body p,
+.card-body div {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+}
+
+.card-body table {
+    width: 100%;
+}
+
+.card-body td,
+.card-body th {
+    word-break: break-word;
+    white-space: normal;
+}
+
+.card-body pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    position: relative;
+}
+
+.card-body code {
+    word-break: break-word;
+    color: inherit;
+}
+
+.card-body pre .copy-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    opacity: 0;
+    transition: opacity .2s;
+    background: #0d6efd;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.card-body pre:hover .copy-btn {
+    opacity: 1;
+}
+
+.card-body .inline-code {
+    position: relative;
+    display: block;
+    width: 100%;
+    margin: 0.5rem 0;
+    padding: 0.75rem;
+    background: #f1f3f4;
+    border-radius: 3px;
+    word-break: break-all;
+    white-space: pre-wrap;
+    color: inherit;
+}
+
+.card-body .inline-code .copy-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    opacity: 0;
+    transition: opacity .2s;
+    background: #0d6efd;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.card-body .inline-code:hover .copy-btn {
+    opacity: 1;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+blockquote {
+    position: relative;
+    margin: 1em 0;
+    padding: 0.5em 20px;
+    color: #666;
+    border-left: 1.5px solid transparent;
+}
+
+blockquote p {
+    margin: 0;
+}
+
+blockquote::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 100%;
+    width: 2.5px;
+    height: 100%;
+    background-color: #ccc;
+}
+
+.file-download-btn {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    margin: 0.25rem;
+    background-color: #0d6efd;
+    color: white;
+    border-radius: 0.375rem;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.file-download-btn:hover {
+    background-color: #0b5ed7;
+}
+
+#content-display {
+    line-height: 1.8;
+}
+
+#content-display p {
+    margin-bottom: 1rem;
+}
+
+#content-display pre {
+    margin: 1rem 0;
+}
+
+#content-display blockquote {
+    padding-left: 1.5rem;
+    border-left: 4px solid #ddd;
+    color: #666;
+}
+
+/* 确保content字段的内容换行 */
+#content-cell {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    max-width: 100%;
+}
+
+/* 针对特别长的无空格字符串 */
+.break-all {
+    word-break: break-all;
+    overflow-wrap: break-word;
+}
+</style>
+
+<!-- Load required libraries -->
+<link href="{% static 'libs/prismjs/themes/prism.min.css' %}" rel="stylesheet"/>
+<script src="{% static 'libs/marked/marked.min.js' %}"></script>
+<script src="{% static 'libs/prismjs/prism.min.js' %}"></script>
+<script src="{% static 'libs/prismjs/plugins/autoloader/prism-autoloader.min.js' %}"></script>
+<script src="{% static 'libs/clipboard/clipboard-polyfill.min.js' %}"></script>
+
+<div class="container mt-4">
+  <div class="row mb-3">
+    <div class="col-12">
+      <a href="{% url 'cv_base_list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back to List
+      </a>
+      {% if request.user == cv_record.created_by or request.user.is_superuser %}
+        <a href="{% url 'cv_base_edit' cv_record.id %}" class="btn btn-primary">
+          <i class="bi bi-pencil"></i> Edit
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card custom-card">
+    <div class="card-body">
+
+      <table class="table">
+        <tr>
+          <th>Record Date</th>
+          <td>{{ cv_record.record_date|date:"Y-m-d" }}</td>
+        </tr>
+        <tr>
+          <th>Title</th>
+          <td>{{ cv_record.title|safe }}</td>
+        </tr>
+        <tr>
+          <th>Content</th>
+          <td id="content-display">
+            <div id="content-cell" class="break-all">Loading...</div>
+          </td>
+        </tr>
+        {% if cv_record.get_content_files %}
+        <tr>
+          <th>Attachments</th>
+          <td>
+            {% for filename in cv_record.get_content_files %}
+              <a href="/uploads/cv_base/{{ cv_record.id }}/content/{{ filename }}" target="_blank" class="file-download-btn">
+                <i class="bi bi-download"></i> {{ filename }}
+              </a>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endif %}
+        <tr>
+          <th>Updated</th>
+          <td>{{ cv_record.update_time|date:"Y-m-d H:i" }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+  highlight: function (code, lang) {
+    if (lang && Prism.languages[lang]) {
+      return Prism.highlight(code, Prism.languages[lang], lang);
+    }
+    return Prism.highlight(code, Prism.languages.plaintext, 'plaintext');
+  }
+});
+
+function addCopyListeners() {
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      let codeElement;
+      if (this.parentElement.tagName === 'CODE') {
+        codeElement = this.parentElement;
+      } else if (this.parentElement.tagName === 'PRE') {
+        codeElement = this.nextElementSibling;
+      }
+
+      if (codeElement) {
+        let codeText = codeElement.textContent;
+        if (codeText.includes('Copy')) {
+          codeText = codeText.replace('Copy', '').trim();
+        }
+
+        try {
+          clipboard.writeText(codeText).then(() => {
+            const originalText = this.textContent;
+            this.textContent = 'Copied!';
+            setTimeout(() => {
+              this.textContent = originalText;
+            }, 1500);
+          }).catch(err => {
+            console.error('Failed to copy text: ', err);
+          });
+        } catch (err) {
+          console.error('Clipboard API not available', err);
+          alert('Your browser does not support the Clipboard API. Please copy the code manually.');
+        }
+      }
+    });
+  });
+}
+
+function renderMarkdown(src) {
+  let html = marked.parse(src);
+
+  html = html.replace(
+    /<pre><code(\s+class="[^"]*")?>([\s\S]*?)<\/code><\/pre>/g,
+    (match, className, code) => {
+      if (className) {
+        return `
+          <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code${className}>${code}</code></pre>
+        `;
+      } else {
+        return `
+          <pre><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button><code>${code}</code></pre>
+        `;
+      }
+    }
+  );
+
+  html = html.replace(/<code(\s+class="[^"]*")?>(.*?)<\/code>/g, (match, className, code) => {
+    if (className) {
+      return `
+        <code${className} class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
+      `;
+    } else {
+      return `
+        <code class="inline-code"><button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>${code}</code>
+      `;
+    }
+  });
+
+  html = html.replace(/<table>/g, '<div class="table-responsive"><table class="table table-sm table-bordered"><thead class="table-light">');
+  html = html.replace(/<\/table>/g, '</table></div>');
+
+  setTimeout(() => {
+    Prism.highlightAll();
+    addCopyListeners();
+  }, 0);
+
+  return html;
+}
+
+function preserveText(text, editorType = 'plain') {
+  if (!text) return '-';
+
+  const unescapedText = unescapeHtml(text);
+
+  if (editorType === 'markdown') {
+    const html = renderMarkdown(unescapedText);
+    setTimeout(() => Prism.highlightAll(), 0);
+    return html;
+  } else {
+    return `<div style="white-space: pre-wrap; font-family: inherit;">${text}</div>`;
+  }
+}
+
+function unescapeHtml(str) {
+  if (typeof str !== 'string') {
+    return str;
+  }
+  try {
+    const doc = new DOMParser().parseFromString(str, 'text/html');
+    const result = doc.documentElement.textContent;
+    return result;
+  } catch (e) {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = str;
+    return textarea.value;
+  }
+}
+
+const cvRecordData = {
+  id: {{ cv_record.id }},
+  record_date: '{{ cv_record.record_date|date:"Y-m-d" }}',
+  title: '{{ cv_record.title|escapejs }}',
+  content: '{{ cv_record.content|escapejs }}',
+  content_editor_type: '{{ cv_record.content_editor_type|default:"plain"|escapejs }}',
+  update_time: '{{ cv_record.update_time|date:"Y-m-d H:i" }}'
+};
+
+// 立即导出到 window，确保 renderCvBaseContent 能访问
+window.cvRecordData = cvRecordData;
+
+function renderCvBaseContent() {
+  const data = window.cvRecordData;
+
+  if (!data) {
+    const cell = document.getElementById('content-cell');
+    if (cell) {
+      cell.innerHTML = '<p style="color: red;">Data not available!</p>';
+    }
+    return;
+  }
+
+  const cell = document.getElementById('content-cell');
+
+  if (!cell) {
+    return;
+  }
+
+  if (typeof marked === 'undefined') {
+    cell.innerHTML = '<p style="color: red;">marked.js library not loaded!</p>';
+    return;
+  }
+
+  const text = data.content;
+  const editorType = data.content_editor_type || 'plain';
+
+  const html = preserveText(text, editorType);
+
+  cell.innerHTML = html;
+
+  setTimeout(() => {
+    addCopyListeners();
+  }, 100);
+}
+
+// Export function for external use (when loaded via fetch)
+window.renderCvBaseContent = renderCvBaseContent;
+window.cvRecordData = cvRecordData;
+
+// Only auto-render when directly accessing the page, not when loaded via fetch
+// Check for __preventAutoRender__ flag set by showDetail in cv_base_list.html
+window.renderCvBaseContentCalled = window.renderCvBaseContentCalled || false;
+
+if (!window.renderCvBaseContentCalled && !window.__preventAutoRender__) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      renderCvBaseContent();
+      window.renderCvBaseContentCalled = true;
+    });
+  } else {
+    setTimeout(() => {
+      renderCvBaseContent();
+      window.renderCvBaseContentCalled = true;
+    }, 0);
+  }
+}
+
+</script>
+{% endblock %}
