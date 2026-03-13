@@ -1,12 +1,19 @@
 export const NotificationPlugin = async ({ project, client, $, directory, worktree }) => {
+  let currentSessionName = 'unknown'
+
   return {
     event: async ({ event }) => {
+      if (event.type === 'session.updated') {
+        currentSessionName = event.properties?.info?.title || event.info?.title || currentSessionName
+        return
+      }
+
       const eventMessages = {
         "command.executed": "Command executed",
         "file.edited": "File edited",
         //"file.watcher.updated": "File watcher updated",
         //"installation.updated": "Installation updated",
-        "lsp.client.diagnostics": "LSP diagnostics updated",
+        //"lsp.client.diagnostics": "LSP diagnostics updated",
         //"lsp.updated": "LSP updated",
         "message.part.removed": "Message part removed",
         //"message.part.updated": "Message part updated",
@@ -15,7 +22,10 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
         "permission.asked": () => event.data?.permission || event.data?.question || "Unknown permission",
         "permission.replied": "Permission replied",
         //"server.connected": "Server connected",
-        //"session.created": "Session created",
+        "session.created": () => {
+          currentSessionName = event.properties?.info?.title || event.info?.title || currentSessionName
+          return 'Session created: ' + currentSessionName
+        },
         "session.compacted": "Session compacted",
         //"session.deleted": "Session deleted",
         //"session.diff": "Session diff",
@@ -24,12 +34,11 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
           if (errorProps?.data?.message) return errorProps.data.message
           if (errorProps?.data?.responseBody) return errorProps.data.responseBody
           if (errorProps?.message) return errorProps.message
-          if (errorProps?.name) return `${errorProps.name}: ${errorProps.message || errorProps.data?.message || ''}`
+          if (errorProps?.name) return errorProps.name + ': ' + (errorProps.message || errorProps.data?.message || '')
           return JSON.stringify(event.properties || event.data || event)
         },
         "session.idle": "Task complete, waiting for input",
-        "session.status": () => event.properties?.status?.type || event.data?.status?.type || 'unknown',
-        //"session.updated": "Session updated",
+        //"session.status": () => event.properties?.status?.type || event.data?.status?.type || 'unknown',
         "todo.updated": "Todo updated",
         "shell.env": "Shell environment updated",
         //"tool.execute.after": () => `Tool executed: ${event.data?.tool || "unknown"}`,
@@ -45,9 +54,10 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
       }
 
       const sendNotification = async (title, message) => {
+        const fullMessage = `[${currentSessionName}]\n${message}`
         try {
-          await $`notify-send -u normal "opencode ${title}" "${message}"`
-          await $`curl --silent --output /dev/null -d "opencode ${title} ${message}" ntfy.sh/aiagentsmessagesnotification`
+          await $`notify-send -u normal "opencode ${title}" "${fullMessage}"`
+          await $`curl --silent --output /dev/null -d "opencode ${title} ${fullMessage}" ntfy.sh/aiagentsmessagesnotification`
         } catch (error) {
           console.log(`NotificationPlugin: notification failed: ${error.message}`)
         }
