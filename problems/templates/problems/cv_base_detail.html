@@ -217,6 +217,10 @@ blockquote::before {
           <th>Title</th>
           <td>{{ cv_record.title|safe }}</td>
         </tr>
+<tr>
+ <th>Classification</th>
+ <td>{{ cv_record.get_classification_level_display }}</td>
+</tr>
         <tr>
           <th>Content</th>
           <td id="content-display">

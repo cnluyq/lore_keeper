@@ -46,7 +46,7 @@ class RegisterForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ('username', 'email')   # 注：password1、password2 会自动带上
+        fields = ('username', 'email') # 注：password1、password2 会自动带上
 
 
 class StaffUserCreationForm(UserCreationForm):
@@ -116,7 +116,7 @@ class SiteConfigForm(forms.ModelForm):
 class CvBaseForm(forms.ModelForm):
     class Meta:
         model = CvBase
-        fields = ['record_date', 'title', 'content', 'content_editor_type']
+        fields = ['record_date', 'title', 'content', 'content_editor_type', 'classification_level']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -139,6 +139,12 @@ class CvBaseForm(forms.ModelForm):
             'style': 'border-radius: 0.5rem; height: 50px; padding: 0.5rem 0.75rem; font-size: 1rem;'
         })
 
+        # Add form-select class to classification_level field
+        self.fields['classification_level'].widget.attrs.update({
+            'class': 'form-select',
+            'style': 'width: 180px; height: 50px; padding: 0.5rem 0.75rem; font-size: 1rem;'
+        })
+
     def clean(self):
         cleaned_data = super().clean()
 
@@ -149,4 +155,3 @@ class CvBaseForm(forms.ModelForm):
                 cleaned_data['content'] = html.escape(text)
 
         return cleaned_data
-

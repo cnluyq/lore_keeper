@@ -119,6 +119,16 @@
         </div>
         {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors|join:", " }}</div>{% endif %}
       </div>
+    <!-- Classification Level -->
+    <div class="col-12">
+        <div class="d-flex align-items-center gap-2">
+            <label class="form-label mb-0" for="{{ form.classification_level.id_for_label }}" style="min-width: 100px;">Classification</label>
+            {{ form.classification_level }}
+        </div>
+        {% if form.classification_level.errors %}<div class="text-danger small">{{ form.classification_level.errors|join:", " }}</div>{% endif %}
+    </div>
+
+
 
       <!-- Content with Markdown Editor -->
       <div class="col-12 editor-container">

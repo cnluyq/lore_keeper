@@ -107,6 +107,11 @@ class Problem(models.Model):
         self.others_file.name = self._build_filename_string(files)
 
 class CvBase(models.Model):
+    CLASSIFICATION_CHOICES = [
+        ('Internal', 'Internal'),
+        ('Confidential', 'Confidential'),
+        ('Secret', 'Secret'),
+    ]
     record_date = models.DateField(unique=True, verbose_name="record date")
     title = models.CharField(max_length=255, verbose_name="title")
     content = models.TextField(blank=True, verbose_name="content")
@@ -115,6 +120,7 @@ class CvBase(models.Model):
     update_time = models.DateTimeField(auto_now=True, verbose_name="update time")
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="created by")
     content_editor_type = models.CharField(max_length=10, choices=[('markdown', 'Markdown'), ('plain', 'Plain Text')], default='plain', verbose_name="content editor type")
+    classification_level = models.CharField(max_length=20, choices=CLASSIFICATION_CHOICES, default='Internal', verbose_name="classification level")
 
     FILE_DELIMITER = '|||'
 

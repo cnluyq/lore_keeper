@@ -548,7 +548,7 @@ def export_json(request):
     cv_base_data = list(
         CvBase.objects.all().values(
             'id', 'record_date', 'title', 'content', 'content_editor_type',
-            'content_file', 'create_time', 'update_time'
+            'content_file', 'create_time', 'update_time', 'classification_level'
         )
     )
 
@@ -681,6 +681,7 @@ def import_json(request):
 
                     # 设置默认值
                     cv_item.setdefault('content_editor_type', 'plain')
+                    cv_item.setdefault('classification_level', 'Internal')
 
                     record_date = cv_item.get('record_date')
                     title = cv_item.get('title', '')
@@ -1328,6 +1329,7 @@ def cv_base_edit(request, pk):
             cv_record.title = form.cleaned_data.get('title', cv_record.title)
             cv_record.content = form.cleaned_data.get('content', cv_record.content)
             cv_record.content_editor_type = form.cleaned_data.get('content_editor_type', cv_record.content_editor_type)
+            cv_record.classification_level = form.cleaned_data.get('classification_level', cv_record.classification_level)
 
             # Handle record_date update
             new_record_date_str = request.POST.get('record_date')
@@ -1354,7 +1356,7 @@ def cv_base_edit(request, pk):
                         })
 
                     cv_record.record_date = new_record_date
-                    update_fields = ['title', 'content', 'content_editor_type', 'record_date', 'update_time']
+                    update_fields = ['title', 'content', 'content_editor_type', 'record_date', 'classification_level', 'update_time']
                 except ValueError:
                     messages.error(request, 'Invalid date format')
                     config = SiteConfig.get_config()
@@ -1368,7 +1370,7 @@ def cv_base_edit(request, pk):
                         'max_file_size_str': max_file_size_str
                     })
             else:
-                update_fields = ['title', 'content', 'content_editor_type', 'update_time']
+                update_fields = ['title', 'content', 'content_editor_type', 'classification_level', 'update_time']
 
             cv_record.save(update_fields=update_fields)
             
