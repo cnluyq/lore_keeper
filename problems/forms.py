@@ -142,17 +142,11 @@ class CvBaseForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        # 只在编辑器类型为 plain 时才转义HTML字符
-        # markdown 模式下，内容将使用 marked.js 解析，应保持原样
         content_editor_type = cleaned_data.get('content_editor_type', 'markdown')
-        text_fields = ['title']
         if content_editor_type == 'plain':
-            text_fields.append('content')
-
-        for field_name in text_fields:
-            text = cleaned_data.get(field_name, '')
+            text = cleaned_data.get('content', '')
             if text:
-                cleaned_data[field_name] = html.escape(text)
+                cleaned_data['content'] = html.escape(text)
 
         return cleaned_data
 
