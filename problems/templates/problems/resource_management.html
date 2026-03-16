@@ -1,4 +1,5 @@
 {% extends 'problems/base.html' %}
+{% load problem_extras %}
 {% block content %}
 <div class="alert alert-info">
   <i class="bi bi-hdd"></i>
@@ -78,10 +79,16 @@
           <td>{{ f.size }}</td>
           <td>
             {% for owner in f.owners %}
-              <a class="badge bg-primary me-1" href="{% url 'problem_edit' owner.pk %}">
-                #{{ owner.id }} - {{ owner.title|truncatechars:20 }}
-              </a>
-            {% empty %}
+              {% if owner|class_name == "Problem" %}
+                <a class="badge bg-primary me-1" href="{% url 'problem_edit' owner.pk %}">
+                  #{{ owner.id }} - {{ owner.title|truncatechars:20 }}
+                </a>
+              {% elif owner|class_name == "CvBase" %}
+                <a class="badge bg-info me-1" href="{% url 'cv_base_edit' owner.pk %}">
+                  CV: {{ owner.record_date }} - {{ owner.title|truncatechars:15 }}
+                </a>
+              {% endif %}
+              {% empty %}
               <span class="text-muted">Not referenced</span>
             {% endfor %}
           </td>

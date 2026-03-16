@@ -1154,6 +1154,17 @@ def resource_management(request):
                 except (ValueError, IndexError):
                     pass
 
+            elif parts and parts[0] == 'cv_base' and len(parts) >= 4 and parts[2] == 'content':
+                try:
+                    cvbase_id = int(parts[1])
+                    cvbase = CvBase.objects.filter(id=cvbase_id).first()
+                    if cvbase and cvbase.content_file:
+                        file_field_value = cvbase.content_file.name
+                        if file_field_value and file_name in file_field_value:
+                            owners.append(cvbase)
+                except (ValueError, IndexError):
+                    pass
+
             elif parts and parts[0] == 'upload_images' and len(parts) >= 2:
                 # upload_images/<filename> - 在所有 uploaded_images 中搜索
                 for problem in Problem.objects.all():

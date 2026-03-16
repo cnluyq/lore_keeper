@@ -67,6 +67,12 @@ def get_file_count(file_field_value):
     return 1  # Single file
 
 
+@register.filter
+def class_name(obj):
+    """Return the class name of an object."""
+    return obj.__class__.__name__
+
+
 # Utility functions used in views
 def parse_files(file_field_value):
     """Parse 'file1.pdf|||file2.doc' -> ['file1.pdf', 'file2.doc']"""
