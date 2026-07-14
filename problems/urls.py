@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 
 urlpatterns = [
@@ -31,4 +32,5 @@ urlpatterns = [
     path('cv-base/calendar-days/', views.cv_base_calendar_days, name='cv_base_calendar_days'),
     path('cv-base/create-by-date/', views.cv_base_create_by_date, name='cv_base_create_by_date'),
     path('cv-base/cancel/<int:pk>/', views.cv_base_cancel, name='cv_base_cancel'),
+    path('favicon.ico', RedirectView.as_view(url='/static/favicon.ico', permanent=True)),
 ]
