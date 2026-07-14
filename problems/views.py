@@ -1044,13 +1044,11 @@ import subprocess
 
 def home_du_human_linux():
     try:
-        completed = subprocess.run(
+        output = subprocess.check_output(
             ['du', '-sh', os.path.expanduser('~')],
-            text=True,
-            capture_output=True,
-            check=True
+            universal_newlines=True
         )
-        return completed.stdout.split()[0]
+        return output.split()[0]
     except Exception as e:
         return 0
 
